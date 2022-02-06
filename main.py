@@ -1,0 +1,1888 @@
+import ssl
+import sys
+import threading
+import time
+from glob import glob
+from os import path, getcwd, makedirs, access, W_OK, remove, startfile
+from re import findall, sub, IGNORECASE, compile
+from urllib import request
+from webbrowser import open_new_tab
+
+import requests
+from PySide2.QtCore import QRect, QObject, Signal, QSize
+from PySide2.QtGui import Qt, QPixmap, QIcon, QMovie
+from PySide2.QtWidgets import QScrollArea, QWidget, QPushButton, QSizePolicy, QLabel, QApplication, QMessageBox, \
+    QComboBox, QGroupBox, QHBoxLayout, QVBoxLayout, QTextEdit, QLineEdit, QSpacerItem, QFileDialog, \
+    QSystemTrayIcon, QFrame, QPlainTextEdit, QTableWidget, QTableWidgetItem
+from PySide2.QtMultimedia import QSound
+
+from framelesswindow import AcrylicWindow
+from titlebar import MainWindowTitleBar
+
+# 创建/读取 配置文件
+if path.exists("config.cfg") == True:
+    with open("config.cfg", "r") as f:
+        _ = []  # 生成空表格
+
+        for line in f.readlines():
+            line = line.strip('\n')  # 去掉列表中每一个元素的换行符
+            _.append(line)
+
+        threadNum = int(_[0])
+        print(threadNum)
+        defaultPath = _[1]
+        print(defaultPath)
+        skinName = _[2]
+        print(skinName)
+        reduceSpeed = int(_[3])
+        print(reduceSpeed)
+        reduceSpeed_2 = int(_[4])
+        print(reduceSpeed_2)
+        f.close()
+else:
+    with open("config.cfg", "w") as f:
+        f.write("8\n%s\nskins/Default\n50\n200" % getcwd().replace("\\", "/"))
+        f.close()
+    with open("config.cfg", "r") as f:
+        _ = []  # 生成空表格
+
+        for line in f.readlines():
+            line = line.strip('\n')  # 去掉列表中每一个元素的换行符
+            _.append(line)
+
+        threadNum = int(_[0])
+        print(threadNum)
+        defaultPath = _[1]
+        print(defaultPath)
+        skinName = _[2]
+        print(skinName)
+        reduceSpeed = _[3]
+        print(reduceSpeed)
+        reduceSpeed_2 = _[4]
+        print(reduceSpeed_2)
+        f.close()
+
+Version = 200
+headers = {
+    "user-agent": "Mozilla/5.0 (Windows NT 6.3; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/93.0.4577.63 Safari/537.36 Edg/93.0.961.44"
+}
+listGroupBoxesList = []
+DownGroupBoxesList = []
+urlRe = compile(r"^" +
+                            "((?:https?|ftp)://)" +
+                            "(?:\\S+(?::\\S*)?@)?" +
+                            "(?:" +
+                            "(?:[1-9]\\d?|1\\d\\d|2[01]\\d|22[0-3])" +
+                            "(?:\\.(?:1?\\d{1,2}|2[0-4]\\d|25[0-5])){2}" +
+                            "(\\.(?:[1-9]\\d?|1\\d\\d|2[0-4]\\d|25[0-4]))" +
+                            "|" +
+                            "((?:[a-z\\u00a1-\\uffff0-9]-*)*[a-z\\u00a1-\\uffff0-9]+)" +
+                            '(?:\\.(?:[a-z\\u00a1-\\uffff0-9]-*)*[a-z\\u00a1-\\uffff0-9]+)*' +
+                            "(\\.([a-z\\u00a1-\\uffff]{2,}))" +
+                            ")" +
+                            "(?::\\d{2,5})?" +
+                            "(?:/\\S*)?" +
+                            "$", IGNORECASE)
+
+# 忽略 https 警告
+ssl._create_default_https_context = ssl._create_unverified_context
+requests.packages.urllib3.disable_warnings()
+
+# 槽
+def Move(object, x, y):
+    object.move(x, y)
+
+def SetText(object, text: str):
+    object.setText(text)
+
+def Resize(object, width: int, height: int):
+    object.resize(width, height)
+
+def MessageBox(title:str,content:str,icon:QPixmap):
+    MyMessageBox(title,content,icon)
+    
+# 实例化信号类并Connect
+class GlobalSignal(QObject): # 全局信号类
+    # 自定义信号
+    move_object = Signal(QWidget, int, int)
+    change_text = Signal(QLabel, str)
+    resize_object = Signal(QWidget, int, int)
+    message_box = Signal(str, str, QPixmap)
+
+globalSignal = GlobalSignal()
+globalSignal.move_object.connect(Move)
+globalSignal.change_text.connect(SetText)
+globalSignal.resize_object.connect(Resize)
+globalSignal.message_box.connect(MessageBox)
+
+# 全局函数
+def countActionValues(start: int, end: int):
+    temp = end - start
+    # actionValuesList = [1 / 24, 1 / 24, 1 / 16, 1 / 12, 1 / 8, 1 / 4, 1 / 6, 1 / 12, 1 / 12, 1 / 16]
+    # actionValuesList = [0.015,0.05,0.1,0.2,0.35,0.6,0.8,0.9,0.95,1]
+    actionValuesList = [0.005, 0.015, 0.03, 0.05, 0.07, 0.1, 0.14, 0.2, 0.27, 0.35, 0.4, 0.6, 0.72, 0.8, 0.84, 0.9,
+                        0.94, 0.96, 0.98, 1]
+    actionValuesList = [i * temp + start for i in actionValuesList]
+    return actionValuesList
+
+def resizeAction( object, start: int, end: int, height: int):
+    actionValuesList = countActionValues(start, end)
+
+    def action():
+        for i in actionValuesList:
+            globalSignal.resize_object.emit(object, i, height)
+            time.sleep(0.013)
+
+    threading.Thread(target=action, daemon=True).start()
+
+def moveAction( object, x: int, y: int, close = False):
+    def action():
+
+        objX = object.x()
+        objY = object.y()
+
+        if objX != x:
+
+            actionValuesList = countActionValues(objX, x)
+
+            for i in actionValuesList:
+                globalSignal.move_object.emit(object, i, objY)
+                time.sleep(0.013)
+
+        elif objY != y:
+
+            actionValuesList = countActionValues(objY, y)
+
+            for i in actionValuesList:
+                globalSignal.move_object.emit(object, objX, i)
+                time.sleep(0.013)
+
+        elif objX != x and objY != y:
+
+            actionXsList = countActionValues(objX, x)
+            actionYsList = countActionValues(objY, y)
+
+            for i in range(len(actionXsList)):
+                globalSignal.move_object.emit(object, actionXsList[i], actionYsList[i])
+                time.sleep(0.013)
+
+        if close == True:
+            object.close()
+
+    threading.Thread(target=action, daemon=True).start()
+
+def changeConfig():
+    with open("config.cfg", "w") as f:
+        f.write(f"{threadNum}\n{defaultPath}\n{skinName}\n{reduceSpeed}\n{reduceSpeed_2}")
+        print(f"{threadNum}\n{defaultPath}\n{skinName}\n{reduceSpeed}\n{reduceSpeed_2}")
+        f.close()
+
+def decidePathWin(parent,texiEdit,default=False):
+    global defaultPath
+    filePath = QFileDialog.getExistingDirectory(parent, "选择文件夹", dir=defaultPath)
+    if not filePath == "":
+        if not default:
+            texiEdit.setText(filePath)
+        elif default:
+            defaultPath = filePath
+            texiEdit.setText(defaultPath)
+            changeConfig()
+
+def newDownloadTask(iconPath:str,url:str,filename:str,download_dir:str,blocks_num:int,parent=None,autoStarted=False):
+    global DownGroupBoxesList
+
+    if not autoStarted:
+        if path.exists("history.hst") == True:
+            with open("history.hst", "r") as f:
+                tmp = f.read()
+                f.close()
+
+                tmp = findall(f"<hst><filename>{filename}</filename><downdir>{download_dir}</downdir>", tmp)
+                print(tmp)
+                if tmp:
+                    globalSignal.message_box.emit("你这是故意找茬啊", "有把同一个文件下载到同一个文件夹的人吗？", parent.logoImg)
+                    return # 结束
+                elif not tmp:
+                    with open("history.hst", "a") as t:
+                        t.write(f"<hst><filename>{filename}</filename><downdir>{download_dir}</downdir>"
+                                f"<downurl>{url}</downurl><threadnum>{blocks_num}</threadnum><icon>{iconPath}</icon></hst>")
+                        t.close()
+
+        else:
+            with open("history.hst", "w") as f:
+                f.write(f"<hst><filename>{filename}</filename><downdir>{download_dir}</downdir>"
+                                f"<downurl>{url}</downurl><threadnum>{blocks_num}</threadnum><icon>{iconPath}</icon></hst>")
+                f.close()
+
+    icon = QPixmap(iconPath)
+
+    DownGroupBoxesList.append(DownGroupBox(icon, url, filename, download_dir, blocks_num, parent))
+    ID = len(DownGroupBoxesList) - 1
+
+    try:
+        DownGroupBoxesList[ID].resize(win.w - 20, 73)
+    except:
+        DownGroupBoxesList[ID].resize(580, 73)
+
+    DownGroupBoxesList[ID].move(3, ID * 78 + 5)
+    DownGroupBoxesList[ID].show()
+
+    parent.downWidget.resize(parent.downWidget.width(), (ID+1) * 78 + 5)
+
+# 类
+class NewTaskWindow(AcrylicWindow):
+    def __init__(self,parent=None):
+        super().__init__(parent=parent,skinName=skinName)
+        self.titleBar.maxBtn.setEnabled(True)
+        self.setObjectName("NewTaskWindow")
+        self.resize(400, 400)
+        self.setMinimumSize(QSize(360, 292))
+        # QSS
+        with open(f"{skinName}/GlobalQSS.qss", "r") as f:
+            GlobalQSS = f.read()
+            # self.setStyleSheet(_)
+            f.close()
+
+        with open(f"{skinName}/MainQSS.qss", "r") as f:
+            MainQSS = f.read()
+            # self.setStyleSheet(_)
+            f.close()
+
+        self.setStyleSheet(GlobalQSS + MainQSS)
+        # logo
+        self.logoPixmap = QPixmap(f"{skinName}/logo.png")
+
+        self.verticalLayout = QVBoxLayout(self)
+        self.verticalLayout.setObjectName(u"verticalLayout")
+        self.verticalLayout.setSpacing(6)
+        self.verticalLayout.setContentsMargins(6, 30, 6, 6)
+
+        self.horizontalLayout = QHBoxLayout()
+        self.horizontalLayout.setObjectName("horizontalLayout")
+        self.horizontalLayout.setSpacing(3)
+
+        self.urlEdit = QPlainTextEdit(self)
+        self.urlEdit.setObjectName("urlEdit")
+        self.horizontalLayout.addWidget(self.urlEdit)
+
+        self.addTableButton = QPushButton(self)
+        self.addTableButton.setObjectName("addTableButton")
+        self.addTableButton.setProperty("round", True)
+
+        sizePolicy = QSizePolicy(QSizePolicy.Minimum, QSizePolicy.Minimum)
+        sizePolicy.setHorizontalStretch(0)
+        sizePolicy.setVerticalStretch(0)
+        sizePolicy.setHeightForWidth(self.addTableButton.sizePolicy().hasHeightForWidth())
+
+        self.addTableButton.setSizePolicy(sizePolicy)
+        self.horizontalLayout.addWidget(self.addTableButton)
+
+        self.verticalLayout.addLayout(self.horizontalLayout)
+
+        self.infoTableWidget = QTableWidget(self)
+        self.infoTableWidget.setObjectName("infoTableWidget")
+        self.infoTableWidget.setColumnCount(3)
+
+        __qtablewidgetitem = QTableWidgetItem()
+        self.infoTableWidget.setHorizontalHeaderItem(0, __qtablewidgetitem)
+        __qtablewidgetitem1 = QTableWidgetItem()
+        self.infoTableWidget.setHorizontalHeaderItem(1, __qtablewidgetitem1)
+        __qtablewidgetitem2 = QTableWidgetItem()
+        self.infoTableWidget.setHorizontalHeaderItem(2, __qtablewidgetitem2)
+
+        self.infoTableWidget.setColumnWidth(0, 225)
+        self.infoTableWidget.setColumnWidth(1, 50)
+        self.infoTableWidget.setColumnWidth(2, 90)
+
+        self.verticalLayout.addWidget(self.infoTableWidget)
+
+        self.allSizeLabel = QLabel(self)
+
+        self.verticalLayout.addWidget(self.allSizeLabel)
+
+        self.horizontalLayout_2 = QHBoxLayout()
+        self.horizontalLayout_2.setObjectName("horizontalLayout_2")
+
+        self.pathEdit = QLineEdit(self)
+        self.pathEdit.setObjectName("pathEdit")
+        self.horizontalLayout_2.addWidget(self.pathEdit)
+
+        self.decidePathBtn = QPushButton(self)
+        self.decidePathBtn.setObjectName("decidePathBtn")
+        self.decidePathBtn.setProperty("round", True)
+
+        self.horizontalLayout_2.addWidget(self.decidePathBtn)
+
+        self.verticalLayout.addLayout(self.horizontalLayout_2)
+
+        self.addTaskBtn = QPushButton(self)
+        self.addTaskBtn.setObjectName("addTaskBtn")
+        self.addTaskBtn.setProperty("round", True)
+
+        self.verticalLayout.addWidget(self.addTaskBtn)
+
+        self.verticalLayout.setStretch(0, 2)
+        self.verticalLayout.setStretch(1, 6)
+
+        self.addTaskBtn.setEnabled(False)
+
+        # retranslateUi
+        self.setWindowTitle(u"\u65b0\u5efa\u4e0b\u8f7d\u4efb\u52a1")
+        self.urlEdit.setPlaceholderText(
+            u"\u5728\u8fd9\u91cc\u952e\u5165\u4e0b\u8f7d\u8fde\u63a5 (\u5982\u9700\u52a0\u5165\u591a\u4e2a,\u8bf7\u7528\u6362\u884c\u7b26\u5206\u9694)")
+        self.addTableButton.setText(u"\u6dfb\u52a0")
+        ___qtablewidgetitem = self.infoTableWidget.horizontalHeaderItem(0)
+        ___qtablewidgetitem.setText(u"\u6587\u4ef6\u540d")
+        ___qtablewidgetitem1 = self.infoTableWidget.horizontalHeaderItem(1)
+        ___qtablewidgetitem1.setText(u"\u7c7b\u578b")
+        ___qtablewidgetitem2 = self.infoTableWidget.horizontalHeaderItem(2)
+        ___qtablewidgetitem2.setText(u"\u5927\u5c0f")
+
+        __sortingEnabled = self.infoTableWidget.isSortingEnabled()
+        self.infoTableWidget.setSortingEnabled(False)
+        self.infoTableWidget.setSortingEnabled(__sortingEnabled)
+
+        self.pathEdit.setPlaceholderText(u"\u5728\u6b64\u952e\u5165\u4e0b\u8f7d\u8def\u5f84.")
+        self.decidePathBtn.setText(u"\u9009\u62e9\u8def\u5f84")
+        self.addTaskBtn.setText(u"\u4e0b\u8f7d")
+
+        self.pathEdit.setText(defaultPath)
+        self.pathEdit.setEnabled(False)
+
+        # 连接函数
+        self.addTableButton.clicked.connect(self.addTabel)
+        self.decidePathBtn.clicked.connect(lambda: decidePathWin(self,self.pathEdit))
+        self.addTaskBtn.clicked.connect(self.addTask)
+
+        self.show()
+
+    def addTabel(self):
+        self.addTableButton.setEnabled(False)
+        self.addTaskBtn.setEnabled(False)
+        self.addTableButton.setText("正在\n添加")
+        # 清空QTableWidget & 二维列表
+        self.tableList = []
+        self.infoTableWidget.setColumnCount(3)
+        self.infoTableWidget.setRowCount(0)
+        self.allSizeLabel.setText("")
+
+        self.url = self.urlEdit.toPlainText()
+        self.url = self.url.split('\n')
+        print(self.url)
+
+        def analysis():
+            allSize = 0
+
+            for i in range(len(self.url)):
+                _ = urlRe.search(self.url[i])
+                if _:
+                    print("进入getinfo")
+                    info = self.getFileInfo(self.url[i])
+                    print(info)
+                    if info == 0:
+                        continue
+                    else:
+                        # 增加数据
+                        self.infoTableWidget.setRowCount(self.infoTableWidget.rowCount() + 1)
+                        self.tableList.append([0, 0, 0, 0])
+                        # 文件名
+                        self.tableList[i][1] = QTableWidgetItem()
+                        self.infoTableWidget.setItem(i, 0, self.tableList[i][1])
+                        self.tableList[i][1].setText(info[1])
+                        # 类型
+                        self.tableList[i][2] = QTableWidgetItem()
+                        self.infoTableWidget.setItem(i, 1, self.tableList[i][2])
+                        self.tableList[i][2].setText(info[2])
+                        self.tableList[i][2].setFlags(Qt.ItemIsEnabled) # 禁止修改
+                        # 大小
+                        self.tableList[i][3] = QTableWidgetItem()
+                        self.infoTableWidget.setItem(i, 2, self.tableList[i][3])
+                        self.tableList[i][3].setText(f"{round(info[0] / 1048576,2)}MB")
+                        self.tableList[i][3].setFlags(Qt.ItemIsEnabled) # 禁止修改
+                        # 修改Url
+                        self.url[i] = info[3]
+                        print(self.url)
+                        # 重新计算总大小
+                        for i in self.tableList:
+                            allSize += float(i[3].text()[:-2])
+                        self.allSizeLabel.setText(f"总: {len(self.tableList)}个文件（{allSize}MB)")
+                else:
+                    globalSignal.message_box.emit("ERROR",f"第{i + 1}个连接似乎有问题,请输入合法的链接!\n已自动跳过.",self.logoPixmap)
+                    continue
+
+            self.addTableButton.setEnabled(True)
+            self.addTaskBtn.setEnabled(True)
+            self.addTableButton.setText("添加")
+
+        threading.Thread(target=analysis,daemon=True).start()
+
+    def getFileInfo(self,url:str):
+        try:
+            response = requests.head(url=url, headers=headers, allow_redirects=False, verify=False)
+            print(response)
+
+            if response.status_code == 400: # Bad Requests
+                globalSignal.message_box.emit("ERROR!","HTTP400!Bad Url!\n请尝试更换下载链接!",self.logoPixmap)
+                return 0
+
+            while response.status_code == 302: # 当302的时候
+                rs = response.headers["location"] # 获取重定向信息
+                print(rs)
+                # 看它返回的是不是完整的URL
+                t = urlRe.search(rs)
+                if t: # 是的话直接跳转
+                    url = rs
+                elif not t: # 不是在前面加上URL
+                    url = findall(r"((?:https?|ftp)://[\s\S]*?)", url)
+                    url = url[0] + rs
+
+                    print(url)
+
+                response = requests.head(url=url, headers=headers, allow_redirects=False, verify=False) # 再访问一次
+
+            try:
+                fileSize = int(response.headers["Content-Length"])
+            except Exception as err:
+                fileSize = 0
+                globalSignal.message_box.emit('ERROR!', f'{url}获取文件大小失败!\n{err}', self.logoPixmap)
+
+
+            try: # 如果是onedrive形式的连接获取filename
+                fileName = response.headers["Content-Disposition"]
+                print(response.headers)
+                fileName = findall(r"filename=\"([\s\S]*)\"",fileName)
+                fileName = fileName[0]
+            except:
+                fileName = url.split("/")[-1]
+
+
+            try:
+                fileType = fileName.split(".")[-1]
+            except:
+                fileType = ""
+
+            return fileSize, fileName, fileType, url
+
+        except requests.exceptions.ConnectionError as err:
+            globalSignal.message_box.emit("网络连接失败！",f"请检查网络连接！\n{err}",self.logoPixmap)
+            return 0
+        except ValueError as err:
+            globalSignal.message_box.emit("网络连接失败！", f"请尝试关闭代理！\n{err}",self.logoPixmap)
+            return 0
+
+    def addTask(self):
+        self.addTaskBtn.setEnabled(False)
+        for i in range(len(self.url)):
+            newDownloadTask(f"{skinName}/logo.png",self.url[i],self.tableList[i][1].text(),self.pathEdit.text(),threadNum,win)
+        self.close()
+
+class MyProgressBar(QWidget):
+    def __init__(self,parent=None):
+        super().__init__(parent)
+        self.setObjectName("MyProgressBar")
+        self.setStyleSheet("* {\n"
+                           "    border: 1px solid rgb(100, 160, 220);\n"
+                           "    border-radius: 10px;"
+                           "}")
+
+        self.progresser = QWidget(self)
+        self.progresser.setObjectName("progresser")
+        self.progresser.setStyleSheet("  background:rgb(100, 160, 220);")
+        self.progresser.move(0, 0)
+        self.resize(0,self.height())
+
+        self.value = 0
+        print(type(self.value))
+
+        self.show()
+
+    def resizeEvent(self, event):
+        super().resizeEvent(event)
+        self.progresser.resize(self.value * self.width() / 100, self.height())
+
+    def setValue(self,value):
+        self.value = value
+        resizeAction(self.progresser, self.progresser.width(), self.value * self.width() / 100, self.height())
+
+class SettingsWindow(AcrylicWindow):
+    def __init__(self,parent=None):
+        super().__init__(skinName,parent)
+        self.titleBar.maxBtn.setEnabled(True)
+        # QSS
+        with open(f"{skinName}/GlobalQSS.qss", "r") as f:
+            GlobalQSS = f.read()
+            # self.setStyleSheet(_)
+            f.close()
+
+        with open(f"{skinName}/MainQSS.qss", "r") as f:
+            MainQSS = f.read()
+            # self.setStyleSheet(_)
+            f.close()
+
+        self.setStyleSheet(GlobalQSS + MainQSS)
+
+        self.logoImg = QPixmap(f"{skinName}/logo.png")
+
+        self.verticalLayout = QVBoxLayout(self)
+        self.verticalLayout.setObjectName(u"verticalLayout")
+        self.verticalLayout.setContentsMargins(10,26,10,10)
+
+        self.decidePathG = QGroupBox(self)
+        self.decidePathG.setObjectName(u"decidePathG")
+
+        self.horizontalLayout_3 = QHBoxLayout(self.decidePathG)
+        self.horizontalLayout_3.setObjectName(u"horizontalLayout_3")
+
+        self.DefaultPathEdit = QLineEdit(self.decidePathG)
+        self.DefaultPathEdit.setObjectName(u"DefaultPathEdit")
+        self.horizontalLayout_3.addWidget(self.DefaultPathEdit)
+
+        self.decidePathBtn = QPushButton(self.decidePathG)
+        self.decidePathBtn.setObjectName(u"decidePathBtn")
+        self.decidePathBtn.setProperty("round", True)
+        self.horizontalLayout_3.addWidget(self.decidePathBtn)
+
+        self.horizontalLayout_3.setStretch(0, 6)
+        self.horizontalLayout_3.setStretch(1, 1)
+
+        self.verticalLayout.addWidget(self.decidePathG)
+
+        self.threadNumG = QGroupBox(self)
+        self.threadNumG.setObjectName(u"threadNumG")
+
+        self.horizontalLayout_2 = QHBoxLayout(self.threadNumG)
+        self.horizontalLayout_2.setObjectName(u"horizontalLayout_2")
+        self.horizontalLayout_2.setContentsMargins(9, 9, 9, 9)
+
+        self.tipLabel = QLabel(self.threadNumG)
+        self.tipLabel.setObjectName(u"tipLabel")
+        self.tipLabel.setStyleSheet(u"")
+        self.tipLabel.setProperty("blue", True)
+        self.horizontalLayout_2.addWidget(self.tipLabel)
+
+        self.threadNumC = QComboBox(self.threadNumG)
+        self.threadNumC.setObjectName(u"threadNumC")
+        self.horizontalLayout_2.addWidget(self.threadNumC)
+
+        self.horizontalLayout_2.setStretch(0, 6)
+        self.horizontalLayout_2.setStretch(1, 1)
+
+        self.verticalLayout.addWidget(self.threadNumG)
+
+        self.restartg = QGroupBox(self)
+        self.restartg.setObjectName(u"restartg")
+
+        self.horizontalLayout_5 = QHBoxLayout(self.restartg)
+        self.horizontalLayout_5.setObjectName(u"horizontalLayout_5")
+
+        self.label = QLabel(self.restartg)
+        self.label.setObjectName(u"label")
+        self.label.setProperty("blue", True)
+        self.horizontalLayout_5.addWidget(self.label)
+
+        self.reduceSpeedEdit = QLineEdit(self.restartg)
+        self.reduceSpeedEdit.setObjectName(u"reduceSpeedEdit")
+        self.horizontalLayout_5.addWidget(self.reduceSpeedEdit)
+
+        self.label_2 = QLabel(self.restartg)
+        self.label_2.setObjectName(u"label_2")
+        self.label_2.setProperty("blue", True)
+        self.horizontalLayout_5.addWidget(self.label_2)
+
+        self.reduceSpeedEdit_2 = QLineEdit(self.restartg)
+        self.reduceSpeedEdit_2.setObjectName(u"reduceSpeedEdit_2")
+        self.horizontalLayout_5.addWidget(self.reduceSpeedEdit_2)
+
+        self.label_3 = QLabel(self.restartg)
+        self.label_3.setObjectName(u"label_3")
+        self.label_3.setProperty("blue", True)
+        self.horizontalLayout_5.addWidget(self.label_3)
+
+        self.verticalLayout.addWidget(self.restartg)
+
+        self.horizontalLayout_4 = QHBoxLayout()
+        self.horizontalLayout_4.setObjectName(u"horizontalLayout_4")
+
+        self.getUpBtn = QPushButton(self)
+        self.getUpBtn.setObjectName(u"getUpBtn")
+        self.getUpBtn.setProperty("round", True)
+        self.horizontalLayout_4.addWidget(self.getUpBtn)
+
+        self.nowVerLable = QLabel(self)
+        self.nowVerLable.setObjectName(u"nowVerLable")
+        self.horizontalLayout_4.addWidget(self.nowVerLable)
+
+        self.horizontalSpacer = QSpacerItem(40, 20, QSizePolicy.Expanding, QSizePolicy.Minimum)
+        self.horizontalLayout_4.addItem(self.horizontalSpacer)
+
+        self.horizontalLayout_4.setStretch(0,2)
+        self.horizontalLayout_4.setStretch(1,8)
+        self.horizontalLayout_4.setStretch(1,10)
+
+        self.verticalLayout.addLayout(self.horizontalLayout_4)
+
+        self.BtnLayout = QHBoxLayout()
+        self.BtnLayout.setObjectName(u"BtnLayout")
+
+        self.jiaQunBtn = QPushButton(self)
+        self.jiaQunBtn.setObjectName(u"jiaQunBtn")
+        self.jiaQunBtn.setProperty("round", True)
+        self.BtnLayout.addWidget(self.jiaQunBtn)
+
+        self.shengMingBtn = QPushButton(self)
+        self.shengMingBtn.setObjectName(u"shengMingBtn")
+        self.shengMingBtn.setProperty("round", True)
+        self.BtnLayout.addWidget(self.shengMingBtn)
+
+        self.myIndexBtn = QPushButton(self)
+        self.myIndexBtn.setObjectName(u"myIndexBtn")
+        self.myIndexBtn.setProperty("round", True)
+        self.BtnLayout.addWidget(self.myIndexBtn)
+
+        self.BtnLayout.setStretch(0,12)
+        self.BtnLayout.setStretch(1,3)
+        self.BtnLayout.setStretch(2,6)
+
+        self.verticalLayout.addLayout(self.BtnLayout)
+
+        self.verticalSpacer = QSpacerItem(20, 280, QSizePolicy.Minimum, QSizePolicy.Expanding)
+        self.verticalLayout.addItem(self.verticalSpacer)
+
+    #设置文本
+        self.decidePathG.setTitle("下载路径设置")
+        self.decidePathBtn.setText("选择路径")
+        self.threadNumG.setTitle("\u4e0b\u8f7d\u7ebf\u7a0b\u8bbe\u7f6e")
+        self.tipLabel.setText("请勿设置过高的下载线程,因为这可能造成电脑卡顿和下载失败!")
+        self.restartg.setTitle("\u81ea\u52a8\u91cd\u8fde\u8bbe\u7f6e")
+        self.label.setText("\u5f53\u4e0b\u8f7d\u964d\u901f\u9ad8\u4e8e")
+        self.label_2.setText("%, 且下载速度低于")
+        self.label_3.setText("KB/s\u65f6, \u81ea\u52a8\u91cd\u8fde.")
+        self.getUpBtn.setText("\u68c0\u67e5\u66f4\u65b0")
+        self.nowVerLable.setText("当前版本:2.0Insider,已是最新!")
+        self.jiaQunBtn.setText("\u70b9\u51fb\u52a0\u5165\u7fa4\u804a: \u6770\u514b\u59da\u306e\u5c0f\u5c4b \u4ee5\u83b7\u53d6\u652f\u6301")
+        self.shengMingBtn.setText("\u4f7f\u7528\u58f0\u660e")
+        self.myIndexBtn.setText("\u6253\u5f00\u6653\u6e38ChR\u7684\u4e3b\u9875")
+
+        self.reduceSpeedEdit.setText(str(reduceSpeed))
+        self.reduceSpeedEdit_2.setText(str(reduceSpeed_2))
+        self.DefaultPathEdit.setText(defaultPath)
+        self.threadNumC.addItems([str(i + 1) for i in range(64)])
+
+        self.threadNumC.setCurrentIndex(threadNum - 1)
+    #连接函数
+        self.DefaultPathEdit.editingFinished.connect(self.changePath)
+        self.jiaQunBtn.clicked.connect(lambda: open_new_tab("https://jq.qq.com/?_wv=1027&k=Q4yTwvag"))
+        self.myIndexBtn.clicked.connect(lambda: open_new_tab("https://space.bilibili.com/437313511"))
+        self.decidePathBtn.clicked.connect(lambda: decidePathWin(self,self.DefaultPathEdit,True))
+        self.threadNumC.currentIndexChanged.connect(self.changeThreadNum)
+        self.reduceSpeedEdit.editingFinished.connect(self.changeReduceSpeed)
+        self.reduceSpeedEdit_2.editingFinished.connect(self.changereduceSpeed_2)
+        self.shengMingBtn.clicked.connect(lambda:globalSignal.message_box.emit("使用声明", ("               软件使用声明\n"
+                                                                       "本软件下载的系统仅供个人用户学习、研究使用。\n"
+                                                                       "任何用户不得将其用于任何商业用途\n"
+                                                                       "本软件下载来源\n"
+                                                                       "bilibili平台:杰克姚发布的内容(包括但不限于视频及其简介等)\n"
+                                                                       "QQ群:杰克姚の小屋(1045814906)(包括但不限于群文件和公告等)\n"
+                                                                       "网站:www.xiaoyouchr.cn/jod\n"
+                                                                       "本声明解释权归晓游ChR所有\n"
+                                                                       "若你从以上声明的下载来源以外的途径下载了本软件，本软件制作方概不负责！"),self.logoImg))
+
+        self.show()
+
+    def changeReduceSpeed(self):
+        global reduceSpeed
+        temp = self.reduceSpeedEdit.text()
+        try:
+            temp = int(temp)
+            if temp >= 0 and temp <=100:
+                reduceSpeed = temp
+                changeConfig()
+            else:
+                self.reduceSpeedEdit.setText(str(reduceSpeed))
+        except:
+            self.reduceSpeedEdit.setText(str(reduceSpeed))
+
+    def changereduceSpeed_2(self):
+        global reduceSpeed_2
+        temp = self.reduceSpeedEdit_2.text()
+        try:
+            temp = int(temp)
+            if temp >= 0 and temp <= 10240:
+                reduceSpeed_2 = temp
+                changeConfig()
+            else:
+                self.reduceSpeedEdit_2.setText(str(reduceSpeed_2))
+        except:
+            self.reduceSpeedEdit_2.setText(str(reduceSpeed_2))
+
+    def changePath(self):
+        # 修改之前备份
+        global defaultPath
+        backup = defaultPath
+        # 现在修改的
+        temp = self.DefaultPathEdit.text()
+        # 去除多打的斜杠
+        if temp[-1] != "/" or "\\":
+            temp = temp
+        else:
+            temp = temp[:-1]
+
+        # 判断路径是否存在
+        if path.exists(temp):
+            defaultPath = temp
+            self.DefaultPathEdit.setText(defaultPath)
+            print(defaultPath)
+            changeConfig()
+
+        elif access(path.dirname(temp), W_OK):
+            defaultPath = temp
+            self.DefaultPathEdit.setText(defaultPath)
+            print(defaultPath)
+            changeConfig()
+
+        else:
+            QMessageBox.critical(
+                self,
+                'Error!',
+                '请输入正确路径！')
+            defaultPath = backup
+            self.DefaultPathEdit.setText(defaultPath)
+            print(defaultPath)
+
+    def changeThreadNum(self):
+        global threadNum
+        temp = threadNum
+        threadNum = int(self.threadNumC.currentText())
+        print(threadNum)
+        if temp <= 32:
+            if threadNum > 32:
+                warning = QMessageBox.question(
+                    self,
+                    '警告！',
+                    '你选择的线程过高！建议4核3Ghz及以上的CPU使用！\n\n你确定要超过32个下载线程吗？')
+                if warning == QMessageBox.Yes:
+                    changeConfig()
+                if warning == QMessageBox.No:
+                    threadNum = temp
+                    self.threadNumC.setCurrentIndex(threadNum - 1)
+            else:
+                changeConfig()
+        else:
+            changeConfig()
+
+class DLWorker:
+    def __init__(self, name:str, url:str, range_start, range_end, cache_dir, finish_callback):
+        self.name = name
+        self.url = url
+        self.cache_filename = f"{cache_dir}{name}.d2l"
+        self.range_start = range_start # 固定不动
+        self.range_end = range_end # 固定不动
+        self.range_curser = range_start # curser 所指尚未开始
+        self.finish_callback = finish_callback # 通知调用 DLWorker 的地方
+        self.terminate_flag = False # 该标志用于终结自己
+        self.FINISH_TYPE = "" # DONE 完成工作, HELP 需要帮忙, RETIRE 不干了
+
+    def __run(self):
+        chunk_size = 1*1024 # 1 kb
+        headers = {'Range': f'Bytes={self.range_curser}-{self.range_end}', 'Accept-Encoding': '*'}
+        req = requests.get(self.url, stream=True, verify=False, headers=headers)
+        with open(self.cache_filename, "wb") as cache:
+            for chunk in req.iter_content(chunk_size=chunk_size):
+                if self.terminate_flag:
+                    break
+                cache.write(chunk)
+                self.range_curser += len(chunk)
+        if not self.terminate_flag: # 只有正常退出才能标记 DONE，但是三条途径都经过此处
+            self.FINISH_TYPE = "DONE"
+        req.close()
+        self.finish_callback(self) # 执行回调函数，根据 FINISH_TYPE 结局不同
+
+    def start(self):
+        threading.Thread(target=self.__run,daemon=True).start()
+
+    def help(self):
+        self.FINISH_TYPE = "HELP"
+        self.terminate_flag = True
+
+    def retire(self):
+        self.FINISH_TYPE = "RETIRE"
+        self.terminate_flag = True
+
+    def __lt__(self, another):
+        """用于排序"""
+        return self.range_start < another.range_start
+
+    def get_progress(self):
+        """获得进度"""
+        _progress = {
+            "curser": self.range_curser,
+            "start": self.range_start,
+            "end": self.range_end
+        }
+        return _progress
+
+class ListGroupBox(QGroupBox):
+    def __init__(self, parent, name:str, filesize, info:str, updata, version, uplog:str, filename, downurl, videourl, icon):
+        super().__init__(parent=parent.listWidget)
+
+        self.w = self.width()
+        self.h = self.height()
+
+        self.name = name
+        self.filesize = filesize
+        self.info = info
+        self.updata = updata
+        self.version = version
+        self.uplog = uplog
+        self.filename = filename
+        self.downurl = downurl
+        self.videourl = videourl
+        self.icon = icon
+        # 初始化展开状态
+        self.opened = True
+        # 初始化ComboBox选项
+        self.currentIndex = 0
+
+        self.setObjectName("ListGroupBox")
+                # 临时
+        self.setStyleSheet(u"QPushButton#downBtn {\n"
+                           "        border-top-right-radius: 10px;\n"
+                           "		border-bottom-right-radius: 10px;\n"
+                           "        border: 1px solid rgb(0, 170, 255);\n"
+                           "}\n"
+                           "QPushButton#moreBtn {\n"
+                           "        border-top-left-radius: 10px;\n"
+                           "		border-bottom-left-radius: 10px;\n"
+                           "        border: 1px solid rgb(0, 170, 255);\n"
+                           "}\n"
+                           "QPushButton[round=\"true\"] {\n"
+                           "		border-radius: 10px;\n"
+                           "        border: 1px solid rgb(0, 170, 255);\n"
+                           "}\n"
+                           "QComboBox {\n"
+                           "        border-radius: 9px;\n"
+                           "        border: 1px solid rgb(111, 156, 207);\n"
+                           "        background: white;\n"
+                           "}\n")
+                # 临时
+
+        # setUp
+        self.imgLable = QLabel(self)
+        self.imgLable.setScaledContents(True)
+        self.imgLable.setGeometry(QRect(5, 16, 81, 81))
+
+        self.infoEdit = QTextEdit(self)
+        self.infoEdit.setGeometry(QRect(90, 20, 401, 71))
+        self.infoEdit.setReadOnly(True)
+            # More
+        self.moreWidget = QWidget(self)
+        self.moreWidget.move(505,20)  # 初始化在下面的调用self.more()函数
+        self.moreWidget.setObjectName("moreWidget")
+                # 临时
+        self.moreWidget.setStyleSheet(u".QWidget#moreWidget{\n"
+                                   "	border:1px solid rgb(0, 170, 255);\n"
+                                   "	background:white;\n"
+                                   "	border-radius: 10px;\n"
+                                   "}")
+                # 临时
+
+        self.upDataLabel = QLabel(self.moreWidget)
+        self.upDataLabel.setGeometry(QRect(165, 0, 176, 21))
+
+        self.fileSizeLabel = QLabel(self.moreWidget)
+        self.fileSizeLabel.setGeometry(QRect(340, 0, 119, 20))
+
+        self.label = QLabel(self.moreWidget)
+        self.label.setGeometry(QRect(31, 1, 36, 19))
+            # 功能性控件
+        self.moreBtn = QPushButton(self.moreWidget)
+        self.moreBtn.setObjectName("moreBtn")
+        self.moreBtn.setGeometry(QRect(0, 0, 21, 21))
+
+        self.verComboBox = QComboBox(self.moreWidget)
+        self.verComboBox.setGeometry(QRect(70, 1, 90, 19))
+
+        self.videoBtn = QPushButton(self)
+        self.videoBtn.setProperty("round", True)
+        self.videoBtn.setGeometry(QRect(505, 45, 61, 21))
+
+        self.logsBtn = QPushButton(self)
+        self.logsBtn.setProperty("round", True)
+        self.logsBtn.setGeometry(QRect(505, 70, 61, 22))
+        self.logsBtn.setEnabled(False)
+
+        self.downBtn = QPushButton(self.moreWidget)
+        self.downBtn.setObjectName("downBtn")
+        self.downBtn.setGeometry(QRect(450, 0, 41, 21))
+        self.downBtn.setEnabled(False)
+
+        resizeAction(self.moreWidget, 491, 61, 21)
+        moveAction(self.downBtn, 20, 0)
+        self.moreBtn.setText("◀")
+        self.opened = False
+
+        threading.Thread(target=self.setImg,daemon=True).start() # 设置头图
+
+        # 连接信号
+        self.moreBtn.clicked.connect(self.Open)
+        self.videoBtn.clicked.connect(lambda:open_new_tab(self.videourl[self.currentIndex]))
+        self.verComboBox.currentIndexChanged.connect(self.changeVersion)
+        self.logsBtn.clicked.connect(lambda:MyMessageBox(f"{self.name}の更新日志",self.uplog,self.icon))
+        self.downBtn.clicked.connect(lambda:newDownloadTask(f"temp/{self.name}-icon", downurl[self.currentIndex], filename[self.currentIndex], defaultPath, threadNum, parent))
+        # setText
+        self.setTitle(self.name)
+        self.label.setText("版本:")
+        self.verComboBox.addItems(self.version)
+        self.downBtn.setText("下载")
+        self.videoBtn.setText("视频")
+        self.logsBtn.setText("日志")
+        self.infoEdit.setText(self.info)
+
+    def Open(self):
+        if self.opened == False: # 没有展开就展开
+            resizeAction(self.moreWidget,61,491,21)
+            moveAction(self.moreWidget,self.w - 500, 20)
+            moveAction(self.downBtn,450,0)
+            self.moreBtn.setText("▶")
+            self.opened = True
+
+        elif self.opened == True: # 展开了就收起
+            resizeAction(self.moreWidget,491,61,21)
+            moveAction(self.moreWidget,self.w - 70, 20)
+            moveAction(self.downBtn,20,0)
+            self.moreBtn.setText("◀")
+            self.opened = False
+
+    def setImg(self):
+        self.icon = requests.get(self.icon).content
+        with open(f'temp/{self.name}-icon','wb') as f:
+            f.write(self.icon)
+            f.close()
+        self.icon = QPixmap(f'temp/{self.name}-icon')
+        self.imgLable.setPixmap(self.icon)
+        self.logsBtn.setEnabled(True)
+        self.downBtn.setEnabled(True)
+
+    def changeVersion(self):
+        self.currentIndex = self.verComboBox.currentIndex()
+        self.fileSizeLabel.setText(f"大小:{self.filesize[self.currentIndex]}")
+        self.upDataLabel.setText(f"更新日期:{self.updata[self.currentIndex]}")
+
+    def resizeEvent(self, event):
+        self.w = self.width()
+        self.h = self.height()
+        super().resizeEvent(event)
+        self.infoEdit.resize(self.w - 175, 71)
+        self.logsBtn.move(self.w - 70,70)
+        self.videoBtn.move(self.w - 70,45)
+        if self.opened == False:
+            self.moreWidget.move(self.w - 70, 20)
+        elif self.opened == True:
+            self.moreWidget.move(self.w - 500, 20)
+
+class DownGroupBox(QGroupBox):
+    def __init__(self,icon:QPixmap,url:str,filename:str,download_dir:str,blocks_num:int,parent=None):
+        super().__init__(parent=parent.downWidget)
+
+        assert 0 <= blocks_num <= 64
+
+        self.w = self.width()
+        self.h = self.height()
+
+        self.url = url
+        # filename = self.url.split("/")[-1]
+        # filename = parse.unquote(filename)
+        self.filename = filename
+        self.download_dir = download_dir
+        self.blocks_num = blocks_num
+        self.__bad_url_flag = False
+        self.file_size = self.__get_size()
+        if not self.__bad_url_flag:
+            # 建立下载目录
+            if not path.exists(self.download_dir):
+                makedirs(self.download_dir)
+            # 建立缓存目录
+            self.cache_dir = f"{self.download_dir}/.cache/"
+            if not path.exists(self.cache_dir):
+                makedirs(self.cache_dir)
+            # 分块下载
+            self.startdlsince = time.time()
+            self.workers = [] # 装载 DLWorker
+            self.AAEK = self.__get_AAEK_from_cache() # 需要确定 self.file_size 和 self.block_num
+            # 测速
+            self.__done = threading.Event()
+            self.__download_record = []
+            threading.Thread(target=self.__supervise,daemon=True).start()
+            # 主进程信号，直到下载结束后解除
+            self.__main_thread_done = threading.Event()
+            # 显示基本信息
+            readable_size = self.__get_readable_size(self.file_size)
+            pathfilename = f'{self.download_dir}/{self.filename}'
+            sys.stdout.write(f"----- D2wnloader [v2.0.b8] -----\n[url] {self.url}\n[path] {pathfilename}\n[size] {readable_size}\n")
+
+        # 初始化Pause状态
+        self.Paused = False
+
+        # setUpGUI
+        self.setStyleSheet(".QLabel {color: rgb(70, 70, 70);}")
+
+        self.imgLable = QLabel(self)
+        self.imgLable.setScaledContents(True)
+        self.imgLable.setPixmap(icon)
+        self.imgLable.setGeometry(QRect(5, 5, 64, 64))
+
+        self.progressBar = MyProgressBar(self)
+        self.progressBar.move(74, 26)
+        self.progressBar.resize(492, 21)
+        self.progressBar.setValue(0)
+
+        self.openFileBtn = QPushButton(self)
+        self.openFileBtn.setGeometry(QRect(441, 50, 71, 21))
+        self.openFileBtn.setProperty("round", True)
+
+        self.fileSizeLabel = QLabel(self)
+        self.fileSizeLabel.setGeometry(QRect(201, 49, 131, 18))
+
+        self.fileNameLabel = QLabel(self)
+        self.fileNameLabel.setGeometry(QRect(75, 5, 389, 18))
+
+        self.speedLabel = QLabel(self)
+        self.speedLabel.setGeometry(QRect(75, 49, 131, 18))
+
+        self.timeLabel = QLabel(self)
+        self.timeLabel.setGeometry(QRect(306, 49, 131, 18))
+
+        self.stateLabel = QLabel(self)
+        self.stateLabel.setGeometry(QRect(74, 25, 492, 21))
+        self.stateLabel.setStyleSheet("color: rgb(84, 84, 84)")
+        self.stateLabel.setAlignment(Qt.AlignCenter)
+
+        self.pauseBtn = QPushButton(self)
+        self.pauseBtn.setGeometry(QRect(521, 50, 21, 21))
+
+        self.threadNumLabel = QLabel(self)
+        self.threadNumLabel.setGeometry(QRect(464, 5, 200, 18))
+
+        # Icon
+        self.pauseIcon = QIcon()
+        self.pauseIcon.addFile(f"{skinName}/pause", QSize(), QIcon.Normal, QIcon.Off)
+        self.playIcon = QIcon()
+        self.playIcon.addFile(f"{skinName}/play", QSize(), QIcon.Normal, QIcon.Off)
+        
+        self.pauseBtn.setIcon(self.pauseIcon)
+
+        self.cancelBtn = QPushButton(self)
+        self.cancelBtn.setGeometry(QRect(551, 50, 21, 21))
+
+        # retranslateUi
+        self.openFileBtn.setText("打开目录")
+        self.stateLabel.setText("正在准备...")
+        self.cancelBtn.setText("╳")
+        self.fileNameLabel.setText(self.filename)
+        self.fileSizeLabel.setText("大小:%s" % self.__get_readable_size(self.file_size))
+        self.timeLabel.setText("剩余时间:Check...")
+        self.threadNumLabel.setText("线程数:Check...")
+        self.speedLabel.setText("速度:Check...")
+        # 连接函数
+        self.openFileBtn.clicked.connect(lambda:startfile(self.download_dir))
+        self.pauseBtn.clicked.connect(self.pause)
+        self.cancelBtn.clicked.connect(self.cancel)
+        # Start
+        threading.Thread(target=self.start,daemon=True).start()
+
+    def resizeEvent(self, event):
+        self.w = self.width()
+        self.h = self.height()
+
+        self.progressBar.resize(self.w - 88,21)
+        self.stateLabel.resize(self.w - 88,21)
+        self.openFileBtn.move(self.w - 123, 49)
+        self.cancelBtn.move(self.w - 23, 49)
+        self.pauseBtn.move(self.w - 48, 49)
+        self.threadNumLabel.move(self.w - 116,5)
+
+        self.speedLabel.move(self.w / 6 - 19, 50)
+        self.fileSizeLabel.move(self.w / 3 + 14, 50)
+        self.timeLabel.move(self.w / 2 + 26, 50)
+
+    def __get_size(self):
+        try:
+            req = request.urlopen(self.url)
+            content_length = req.headers["Content-Length"]
+            req.close()
+            return int(content_length)
+        except Exception as err:
+            self.__bad_url_flag = True
+            print(f"[Error] {err}")
+            return 0
+
+    def __get_readable_size(self, size):
+        units = ["B", "KB", "MB", "GB", "TB", "PB"]
+        unit_index = 0
+        K = 1024.0
+        while size >= K:
+            size = size / K
+            unit_index += 1
+        return "%.2f %s" % (size, units[unit_index])
+
+    def __get_cache_filenames(self):
+        return glob(f"{self.cache_dir}{self.filename}.*.d2l")
+
+    def __get_ranges_from_cache(self):
+        # 形如 ./cache/filename.1120.d2l
+        ranges = []
+        for filename in self.__get_cache_filenames():
+            size = path.getsize(filename)
+            if size > 0:
+                cache_start = int(filename.split(".")[-2])
+                cache_end = cache_start + size - 1
+                ranges.append((cache_start, cache_end))
+        ranges.sort(key=lambda x: x[0])  # 排序
+        return ranges
+
+    def __get_AAEK_from_cache(self):
+        ranges = self.__get_ranges_from_cache()  # 缓存文件里的数据
+        AAEK = []  # 根据 ranges 和 self.file_size 生成 AAEK
+        if len(ranges) == 0:
+            AAEK.append((0, self.file_size - 1))
+        else:
+            for i, (start, end) in enumerate(ranges):
+                if i == 0:
+                    if start > 0:
+                        AAEK.append((0, start - 1))
+                next_start = self.file_size if i == len(ranges) - 1 else ranges[i + 1][0]
+                if end < next_start - 1:
+                    AAEK.append((end + 1, next_start - 1))
+        return AAEK
+
+    def __increase_ranges_slice(self, ranges: list, minimum_size=1024 * 1024):
+        """增加分块数目，小于 minimum_size 就不再分割了"""
+        assert len(ranges) > 0
+        block_size = [end - start + 1 for start, end in ranges]
+        index_of_max = block_size.index(max(block_size))
+        start, end = ranges[index_of_max]
+        halfsize = block_size[index_of_max] // 2
+        if halfsize >= minimum_size:
+            new_ranges = [x for i, x in enumerate(ranges) if i != index_of_max]
+            new_ranges.append((start, start + halfsize))
+            new_ranges.append((start + halfsize + 1, end))
+        else:
+            new_ranges = ranges
+        return new_ranges
+
+    def __ask_for_work(self, worker_num: int):
+        """申请工作，返回 [work_range]，从 self.AAEK 中扣除。没工作的话返回 []。"""
+        assert worker_num > 0
+        task = []
+        aaek_num = len(self.AAEK)
+        if aaek_num == 0:  # 没任务了
+            # TODO 这里挑 size 大的 DLWorker 调用 help
+            self.__share_the_burdern()
+            return []
+        if aaek_num >= worker_num:  # 数量充足，直接拿就行了
+            for _ in range(worker_num):
+                task.append(self.AAEK.pop(0))
+        else:  # 数量不足，需要切割
+            slice_num = worker_num - aaek_num  # 需要分割几次
+            task = self.AAEK  # 这个时候 task 就不可能是 [] 了
+            self.AAEK = []
+            for _ in range(slice_num):
+                task = self.__increase_ranges_slice(task)
+        task.sort(key=lambda x: x[0])
+        return task
+
+    def __share_the_burdern(self, minimum_size=1024 * 1024):
+        """找出工作最繁重的 worker，调用他的 help。回调函数中会将他的任务一分为二。"""
+        max_size = 0
+        max_size_name = ""
+        for w in self.workers:
+            p = w.get_progress()
+            size = p["end"] - p["curser"] + 1
+            if size > max_size:
+                max_size = size
+                max_size_name = w.name
+        if max_size >= minimum_size:
+            for w in self.workers:
+                if w.name == max_size_name:
+                    w.help()
+                    break
+
+    def __give_back_work(self, worker: DLWorker):
+        """接纳没干完的工作。需要按 size 从小到大排序。"""
+        progress = worker.get_progress()
+        curser = progress["curser"]
+        end = progress["end"]
+        if curser <= end:  # 校验一下是否是合理值
+            self.AAEK.append((curser, end))
+            self.AAEK.sort(key=lambda x: x[0])
+
+    def __give_me_a_worker(self, start, end):
+        worker = DLWorker(name=f"{self.filename}.{start}",
+                          url=self.url, range_start=start, range_end=end, cache_dir=self.cache_dir,
+                          finish_callback=self.__on_dlworker_finish)
+        return worker
+
+    def __whip(self, worker: DLWorker):
+        """鞭笞新来的 worker，让他去工作"""
+        self.workers.append(worker)
+        self.workers.sort()
+        worker.start()
+
+    def __on_dlworker_finish(self, worker: DLWorker):
+        assert worker.FINISH_TYPE != ""
+        self.workers.remove(worker)
+        if worker.FINISH_TYPE == "HELP":  # 外包
+            self.__give_back_work(worker)
+            self.workaholic(2)
+        elif worker.FINISH_TYPE == "DONE":  # 完工
+            # 再打一份工，也可能打不到
+            self.workaholic(1)
+        elif worker.FINISH_TYPE == "RETIRE":  # 撂挑子
+            # 把工作添加回 AAEK，离职不管了。
+            self.__give_back_work(worker)
+        # 下载齐全，开始组装
+        if self.workers == [] and self.__get_AAEK_from_cache() == []:
+            self.__sew()
+
+    def start(self):
+        # TODO 尝试整理缓存文件夹内的相关文件
+        if not self.__bad_url_flag:
+            # 召集 worker
+            for start, end in self.__ask_for_work(self.blocks_num):
+                worker = self.__give_me_a_worker(start, end)
+                self.__whip(worker)
+            # 卡住主进程
+            self.__main_thread_done.wait()
+
+    def stop(self):
+        """再次召集 worker。不调用 start 的原因是希望他继续卡住主线程。"""
+        for w in self.workers:
+            w.retire()
+        while len(self.workers) != 0:
+            time.sleep(0.5)
+
+    def pause(self):
+        """接受Pause按钮发出的暂停信号并进行操作"""
+        if self.Paused == False: # 没暂停就暂停
+
+            self.Paused = True
+
+            self.pauseBtn.setEnabled(False)
+            self.cancelBtn.setEnabled(False)
+            self.pauseBtn.setIcon(self.playIcon)
+            globalSignal.change_text.emit(self.stateLabel,"正在暂停:正在停止线程...")
+
+            self.stop()
+
+            self.pauseBtn.setEnabled(True)
+            self.cancelBtn.setEnabled(True)
+            globalSignal.change_text.emit(self.stateLabel,"正在暂停...")
+
+        elif self.Paused == True: # 暂停了就开始
+            self.pauseBtn.setEnabled(False)
+            self.cancelBtn.setEnabled(False)
+            self.pauseBtn.setIcon(self.pauseIcon)
+            globalSignal.change_text.emit(self.stateLabel,"正在开始:正在召回线程...")
+            # 再次召集 worker。不调用 start 的原因是希望他继续卡住主线程。
+            self.again()
+
+            self.pauseBtn.setEnabled(True)
+            self.cancelBtn.setEnabled(True)
+
+            self.Paused = False
+
+    def workaholic(self, n=1):
+        """九九六工作狂。如果能申请到，就地解析；申请不到，__give_me_a_worker 会尝试将一个 worker 的工作一分为二；"""
+        for s, e in self.__ask_for_work(n):
+            worker = self.__give_me_a_worker(s, e)
+            self.__whip(worker)
+
+    def again(self):
+        """再次召集 worker。不调用 start 的原因是希望他继续卡住主线程。"""
+        for start, end in self.__ask_for_work(self.blocks_num):
+            worker = self.__give_me_a_worker(start, end)
+            self.__whip(worker)
+
+    def restart(self):
+        self.stop()
+        # 再次召集 worker。不调用 start 的原因是希望他继续卡住主线程。
+        self.again()
+
+    def cancel(self):
+        self.pauseBtn.setEnabled(False)
+        self.cancelBtn.setEnabled(False)
+        globalSignal.change_text.emit(self.stateLabel, "正在取消任务:正在暂停线程...")
+        self.Paused = True
+        self.stop()
+        globalSignal.change_text.emit(self.stateLabel, "正在取消任务:正在清理内存...")
+        self.__done.set()
+        globalSignal.change_text.emit(self.stateLabel, "正在取消任务:正在清理缓存...")
+        self.clear()
+        self.__main_thread_done.set()
+        moveAction(self,self.w + 35,self.y(),True)
+        if len(DownGroupBoxesList) == 1:
+            del DownGroupBoxesList[0]
+        else:
+            ID = DownGroupBoxesList.index(self)
+            del DownGroupBoxesList[ID]
+            for i in range(len(DownGroupBoxesList)):
+                moveAction(DownGroupBoxesList[i], DownGroupBoxesList[i].x(), i * 78 + 5)
+
+
+    def __supervise(self):
+        """万恶的督导：监视下载速度、进程数；提出整改意见；"""
+        REFRESH_INTERVAL = 1  # 每多久输出一次监视状态
+        LAG_COUNT = 10  # 计算过去多少次测量的平均速度
+        WAIT_TIMES_BEFORE_RESTART = 30  # 乘以时间就是等待多久执行一次 restart
+        SPEED_DEGRADATION_PERCENTAGE = int(reduceSpeed) / 100  # 速度下降百分比
+        self.__download_record = []
+        maxspeed = 0
+        wait_times = WAIT_TIMES_BEFORE_RESTART
+        while not self.__done.is_set():
+            dwn_size = sum([path.getsize(cachefile) for cachefile in self.__get_cache_filenames()])
+            self.__download_record.append({"timestamp": time.time(), "size": dwn_size})
+            if len(self.__download_record) > LAG_COUNT:
+                self.__download_record.pop(0)
+            s = self.__download_record[-1]["size"] - self.__download_record[0]["size"]
+            t = self.__download_record[-1]["timestamp"] - self.__download_record[0]["timestamp"]
+            if not t == 0 and self.Paused == False:
+                speed = s / t
+                readable_speed = self.__get_readable_size(speed)  # 变成方便阅读的样式
+                percentage = self.__download_record[-1]["size"] / self.file_size * 100
+                status_msg = f"\r[info] {percentage:.1f} % | {readable_speed}/s | {len(self.workers)}+{threading.active_count() - len(self.workers)} {(time.time() - self.startdlsince):.0f}s          "
+                sys.stdout.write(status_msg)
+                # 更改界面
+                self.progressBar.setValue(percentage)
+
+                globalSignal.change_text.emit(self.stateLabel, f"正在下载:{percentage:.1f}% ({self.__get_readable_size(self.__download_record[-1]['size'])})")
+                globalSignal.change_text.emit(self.speedLabel,f"速度:{readable_speed}/s")
+                if speed == 0:
+                    globalSignal.change_text.emit(self.timeLabel, "剩余时间:Check...")
+                else:
+                    globalSignal.change_text.emit(self.timeLabel, f"剩余时间:%s" % self.__get_readable_time(round((self.file_size - self.__download_record[-1]['size']) / speed)))
+                globalSignal.change_text.emit(self.threadNumLabel, f"线程数:{len(self.workers)}+{threading.active_count() - len(self.workers)}")
+                # 监测下载速度下降
+                maxspeed = max(maxspeed, speed)
+                # 当满足：该监测了 + 未完成 + 速度下降百分比达到了阈值 + 速度低于 1 MB/s
+                if wait_times < 0 and not self.__done.is_set() and (
+                        maxspeed - speed) / maxspeed > SPEED_DEGRADATION_PERCENTAGE and speed < int(reduceSpeed_2) * 1024:
+                    sys.stdout.write("\r[info] speed degradation, restarting...          ")
+                    globalSignal.change_text.emit(self.stateLabel,"正在下载:速度过低,正在重连...")
+                    self.restart()
+                    maxspeed = 0
+                    wait_times = WAIT_TIMES_BEFORE_RESTART
+                else:
+                    wait_times -= 1
+            time.sleep(REFRESH_INTERVAL)
+
+    def show_sew_progress(self):
+        while True:
+            time.sleep(0.3)
+            sewed_size = path.getsize(f"{self.download_dir}/{self.filename}")
+            sew_progress = (sewed_size / self.file_size) * 100
+            sys.stdout.write(f"[info] sew_progress {sew_progress} %\n")
+            globalSignal.change_text.emit(self.stateLabel, f"正在合并:{sew_progress}% ({self.__get_readable_size(sewed_size)})")
+            self.progressBar.setValue(sew_progress)
+
+            if (self.file_size - sewed_size) == 0:
+                globalSignal.change_text.emit(self.stateLabel, "下载完成!")
+                self.progressBar.setValue(sew_progress)
+                QSound(f"{skinName}/download-complete.wav").play()
+                systemTray.showMessage("Hey--下载完成了!",f"{self.filename} 已完成下载!",logoIcon)
+                systemTray.messageClicked.connect(lambda:startfile(self.download_dir))
+                break
+
+    def __sew(self):
+        self.__done.set()
+        chunk_size = 10 * 1024 * 1024
+
+        threading.Thread(target=self.show_sew_progress,daemon=True).start()
+
+        with open(f"{self.download_dir}/{self.filename}", "wb") as f:
+            for start, _ in self.__get_ranges_from_cache():
+                cache_filename = f"{self.cache_dir}{self.filename}.{start}.d2l"
+                with open(cache_filename, "rb") as cache_file:
+                    data = cache_file.read(chunk_size)
+                    while data:
+                        f.write(data)
+                        f.flush()
+                        data = cache_file.read(chunk_size)
+        self.clear()
+        # sys.stdout.write(f"\n[md5] {self.md5()}\n[info] D2wnloaded\n")
+        self.__main_thread_done.set()
+
+    def __get_readable_time(self,seconds:int):
+        m, s = divmod(seconds, 60)
+        return "{:02d}m:{:02d}s".format(m, s)
+    # def md5(self):
+    #     chunk_size = 1024 * 1024
+    #     filename = f"{path.join(self.download_dir, self.filename)}"
+    #     md5 = hashlib.md5()
+    #     with open(filename, "rb") as f:
+    #         data = f.read(chunk_size)
+    #         while data:
+    #             md5.update(data)
+    #             data = f.read(chunk_size)
+    #     return md5.hexdigest()
+
+    def clear(self, all_cache=False):
+        # 清除历史
+        with open("history.hst", "r") as f:
+            tmp = f.read()
+            f.close()
+            tmp = sub(f"<hst><filename>{self.filename}</filename><downdir>{self.download_dir}</downdir>", "Deleted", tmp)
+            print(tmp)
+
+        with open("history.hst", "w") as f:
+            f.write(tmp)
+            f.close()
+
+        if all_cache:  # TODO 需要交互提醒即将删除的文件夹 [Y]/N 确认。由于不安全，先不打算实现。
+            pass
+        else:
+            for filename in self.__get_cache_filenames():
+                remove(filename)
+
+class MyMessageBox(AcrylicWindow):
+    def __init__(self,title:str,content:str,icon:QPixmap,parent=None):
+        super().__init__(parent=parent,skinName=skinName)
+        self.setObjectName("MyMessageBox")
+        self.setFixedSize(400,300)
+        # QSS
+        with open(f"{skinName}/GlobalQSS.qss", "r") as f:
+            _ = f.read()
+            self.setStyleSheet(_)
+            f.close()
+
+        self.icon = QLabel(self)
+        self.icon.setObjectName(u"icon")
+        self.icon.setGeometry(QRect(10, 250, 41, 41))
+        self.icon.setScaledContents(True)
+        self.icon.setPixmap(icon)
+
+        self.textEdit = QTextEdit(self)
+        self.textEdit.setObjectName(u"textEdit")
+        self.textEdit.setGeometry(QRect(10, 30, 381, 211))
+        self.textEdit.setReadOnly(True)
+
+        self.ok = QPushButton(self)
+        self.ok.setObjectName(u"ok")
+        self.ok.setGeometry(QRect(310, 260, 75, 23))
+        self.ok.setProperty("round", True)
+
+        # retranslateUi
+        self.setWindowTitle(title)
+        self.textEdit.setText(content)
+        self.ok.setText("我知道了")
+        self.ok.clicked.connect(self.close)
+
+        self.show()
+        self.exec_()
+
+    def keyPressEvent(self, event):
+        super().keyPressEvent(event)
+        if event.key() == Qt.Key_Escape:
+             self.close()   #关闭程序
+
+class Window(AcrylicWindow):
+
+    # 自定义信号
+    load_list = Signal(str)
+    listNotLoaded = False
+    ID = 0
+
+    def __init__(self, parent=None):
+        # 初始化
+        super().__init__(skinName=skinName, parent=parent)
+        self.titleBar = MainWindowTitleBar(skinName, self)
+
+        self.setObjectName("self")
+
+        # 建立缓存目录
+        if path.exists("temp/") == False:
+            makedirs("temp/")
+
+        self.resize(600, 600)
+        self.setMinimumSize(600, 600)
+        self.setWindowTitle("Ghost Downloader")
+        self.titleBar.raise_()
+
+        # QSS
+        with open(f"{skinName}/GlobalQSS.qss", "r") as f:
+            _ = f.read()
+            self.setStyleSheet(_)
+            f.close()
+
+        self.setUp()
+
+        # 连接信号
+        self.load_list.connect(self.loadList)
+        self.listBtn.clicked.connect(lambda:self.changeInterface(0))
+        self.downBtn.clicked.connect(lambda: self.changeInterface(1))
+        self.toolsBtn.clicked.connect(lambda: self.changeInterface(2))
+        self.newDownBtn.clicked.connect(NewTaskWindow)
+        self.titleBar.setBtn.clicked.connect(SettingsWindow)
+
+        # 读取下载历史并自动开始
+        if path.exists("history.hst") == True:
+            with open("history.hst", "r") as f:
+                tmp = f.read()
+                f.close()
+                tmp = findall(r"<hst>([\s\S]*?)</hst>", tmp)
+                print(tmp)
+                for i in tmp:
+                    filename = findall(r"<filename>([\s\S]*)</filename>", i)
+                    filename = filename[0]
+                    downdir = findall(r"<downdir>([\s\S]*)</downdir>", i)
+                    downdir = downdir[0]
+                    downurl = findall(r"<downurl>([\s\S]*)</downurl>", i)
+                    downurl = downurl[0]
+                    blocks_num = findall(r"<threadnum>([\s\S]*)</threadnum>", i)
+                    blocks_num = int(blocks_num[0])
+                    iconpath = findall(r"<icon>([\s\S]*)</icon>", i)
+                    iconpath = iconpath[0]
+
+                    newDownloadTask(iconpath,downurl,filename,downdir,blocks_num,self,True)
+
+    def setUp(self):
+        # Logo
+        self.logoImgLable = QLabel(self)
+        self.logoImgLable.move(8, 8)
+        self.logoImgLable.resize(26, 26)
+        self.logoImgLable.setScaledContents(True)
+        self.logoImg = QPixmap(f"{skinName}/logo.png")
+        self.logoImgLable.setPixmap(self.logoImg)
+
+        self.listBtn = QPushButton(self)
+        self.listBtn.setObjectName(u"listBtn")
+        self.listBtn.setEnabled(True)
+        self.listBtn.setGeometry(QRect(121, 5, 111, 30))
+        icon1 = QIcon()
+        icon1.addFile(f"{skinName}/list.png", QSize(), QIcon.Normal, QIcon.Off)
+        self.listBtn.setIcon(icon1)
+        self.listBtn.setIconSize(QSize(24, 24))
+
+        self.downBtn = QPushButton(self)
+        self.downBtn.setObjectName(u"downBtn")
+        self.downBtn.setGeometry(QRect(246, 5, 111, 30))
+        icon2 = QIcon()
+        icon2.addFile(f"{skinName}/down.png", QSize(), QIcon.Normal, QIcon.Off)
+        self.downBtn.setIcon(icon2)
+        self.downBtn.setIconSize(QSize(28, 28))
+
+        self.toolsBtn = QPushButton(self)
+        self.toolsBtn.setObjectName(u"toolsBtn")
+        self.toolsBtn.setGeometry(QRect(371, 5, 111, 30))
+        icon3 = QIcon()
+        icon3.addFile(f"{skinName}/tools.png", QSize(), QIcon.Normal, QIcon.Off)
+        self.toolsBtn.setIcon(icon3)
+        self.toolsBtn.setIconSize(QSize(30, 30))
+
+        self.btnBackground = QWidget(self)
+        self.btnBackground.setObjectName(u"btnBackground")
+        self.btnBackground.setGeometry(QRect(121, 5, 111, 31))
+
+        self.verLable = QLabel(self)
+        self.verLable.setObjectName(u"verLable")
+        self.verLable.setGeometry(QRect(550, 30, 51, 10))
+
+        self.newDownBtn = QPushButton(self)
+        self.newDownBtn.setObjectName(u"newDownBtn")
+        self.newDownBtn.setGeometry(QRect(285, -30, 30, 30))
+        icon4 = QIcon()
+        icon4.addFile(f"{skinName}/new.png", QSize(), QIcon.Normal, QIcon.Off)
+        self.newDownBtn.setIcon(icon4)
+        self.newDownBtn.setIconSize(QSize(18, 18))
+
+        self.btnBackground.raise_()
+        self.logoImgLable.raise_()
+        self.listBtn.raise_()
+        self.downBtn.raise_()
+        self.toolsBtn.raise_()
+        self.verLable.raise_()
+        self.newDownBtn.raise_()
+
+        # mainWidget
+        self.main = QWidget(self)
+        self.main.setMouseTracking(True)  # 否则只有左键时才能获取鼠标坐标
+        self.main.setObjectName(u"main")
+        self.main.setGeometry(QRect(0, 40, 1800, 560))
+
+        with open(f"{skinName}/MainQSS.qss", "r") as f:
+            self.main.setStyleSheet(f.read())
+            f.close()
+
+        self.horizontalLayout = QHBoxLayout(self.main)
+        self.horizontalLayout.setSpacing(0)
+        self.horizontalLayout.setObjectName(u"horizontalLayout")
+        self.horizontalLayout.setContentsMargins(0, 0, 0, 0)
+        # listArea
+        self.listArea = QScrollArea(self.main)
+        self.listArea.setMouseTracking(True)  # 否则只有左键时才能获取鼠标坐标
+        self.listArea.setObjectName(u"listArea")
+        self.listArea.setFrameShape(QFrame.NoFrame)
+        self.listArea.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+
+        self.listWidget = QWidget()
+        self.listWidget.setMouseTracking(True)  # 否则只有左键时才能获取鼠标坐标
+        self.listWidget.setObjectName(u"listWidget")
+        self.listWidget.setGeometry(QRect(0, 0, 600, 500))
+
+        self.listArea.setWidget(self.listWidget)
+        self.horizontalLayout.addWidget(self.listArea)
+
+        # downArea
+        self.downArea = QScrollArea(self.main)
+        self.downArea.setMouseTracking(True)  # 否则只有左键时才能获取鼠标坐标
+        self.downArea.setObjectName(u"downArea")
+        self.downArea.setFrameShape(QFrame.NoFrame)
+        self.downArea.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+
+        self.downWidget = QWidget()
+        self.downWidget.setMouseTracking(True)  # 否则只有左键时才能获取鼠标坐标
+        self.downWidget.setObjectName(u"downWidget")
+        self.downWidget.setGeometry(QRect(0, 0, 600, 100))
+
+        # 临时
+        self.downWidget.setStyleSheet(u"QGroupBox {\n"
+                                      "        font-size: 15px;\n"
+                                      "        border: 1px solid rgb(100, 160, 220);\n"
+                                      "        border-radius: 10px;\n"
+                                      "        margin-top: 0px;\n"
+                                      "}\n"
+                                      "QPushButton#downimg {\n"
+                                      "	border: none;\n"
+                                      "	background-color: none\n"
+                                      "}\n"
+                                      "QPushButton {\n"
+                                      "	border-radius: 10px;\n"
+                                      " border: 1px solid rgb(0, 170, 255);\n"
+                                      "}\n"
+                                      "QPushButton:enabled {\n"
+                                      "        background: rgb(120, 170, 220);\n"
+                                      "        color: white;\n"
+                                      "}\n"
+                                      "QPushButton:!enabled {\n"
+                                      "        background: rgb(180, 180, 180);\n"
+                                      "        color: white;\n"
+                                      "}\n"
+                                      "QPushButton:enabled:hover{\n"
+                                      "        background: rgb(100, 160, 220);\n"
+                                      "}\n"
+                                      "QPushButton:enabled:pressed{\n"
+                                      "        background: rgb(0, 78, 161);"
+                                      "}\n")
+        # 临时
+
+        self.downArea.setWidget(self.downWidget)
+        self.horizontalLayout.addWidget(self.downArea)
+
+        # toolsArea
+        self.toolsArea = QScrollArea(self.main)
+        self.toolsArea.setMouseTracking(True)  # 否则只有左键时才能获取鼠标坐标
+        self.toolsArea.setObjectName(u"toolsArea")
+        self.toolsArea.setFrameShape(QFrame.NoFrame)
+        self.toolsArea.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+
+        self.toolsWidget = QWidget()
+        self.toolsWidget.setMouseTracking(True)  # 否则只有左键时才能获取鼠标坐标
+        self.toolsWidget.setObjectName(u"toolsWidget")
+        self.toolsWidget.setGeometry(QRect(0, 0, 600, 540))
+
+        self.toolsArea.setWidget(self.toolsWidget)
+        self.horizontalLayout.addWidget(self.toolsArea)
+
+        # 文本
+        self.listBtn.setText("推荐资源")
+        self.downBtn.setText("任务列表")
+        self.toolsBtn.setText("实用工具")
+        self.verLable.setText("2.0Insider")
+
+        self.listNotLoaded = False
+        # 加载GIF
+        self.loadingGifLable = QLabel(self.listWidget)
+        self.loadingGifLable.move(273, 240)
+        self.loadingGifLable.resize(50, 50)
+        self.loadingGifLable.setScaledContents(True)
+        self.loadingGif = QMovie(f"{skinName}/loading.gif")
+        self.loadingGifLable.setMovie(self.loadingGif)
+        self.loadingGif.start()
+        self.loadingGifLable.show()
+
+        def getWebsiteContent():
+            try:
+                content = requests.get("https://128.14.239.141/config.txt", headers, verify=False)
+                content.encoding = "utf-8"
+                content = content.text
+                self.load_list.emit(content)
+            except requests.exceptions.ConnectionError as err:
+                QMessageBox.critical(self, "网络连接失败！", f"请尝试关闭代理！\n{err}")
+                self.listNotLoaded = True
+            except ValueError as err:
+                QMessageBox.critical(self, "网络连接失败！", f"请检查网络连接！\n{err}")
+                self.listNotLoaded = True
+            except Exception as err:
+                QMessageBox.critical(self, "未知错误!", f"请联系开发者,QQ:2078107317！\n{err}")
+                self.listNotLoaded = True
+
+        threading.Thread(target=getWebsiteContent, daemon=True).start()
+
+    def changeInterface(self, ID):
+        self.ID = ID
+        if ID == 0 and self.listNotLoaded == True:  # 判断是否加载了推荐资源列表
+            self.listNotLoaded = False
+            # 加载GIF
+            self.loadingGifLable = QLabel(self.listWidget)
+            self.loadingGifLable.move(273, 240)
+            self.loadingGifLable.resize(50, 50)
+            self.loadingGifLable.setScaledContents(True)
+            self.loadingGif = QMovie(f"{skinName}/loading.gif")
+            self.loadingGifLable.setMovie(self.loadingGif)
+            self.loadingGif.start()
+            self.loadingGifLable.show()
+
+            def getWebsiteContent():
+                try:
+                    content = requests.get("https://128.14.239.141/config.txt", headers, verify=False)
+                    content.encoding = "utf-8"
+                    content = content.text
+                    self.load_list.emit(content)
+                except requests.exceptions.ConnectionError as err:
+                    QMessageBox.critical(self, "网络连接失败！", f"请尝试关闭代理！\n{err}")
+                    self.listNotLoaded = True
+                except ValueError as err:
+                    QMessageBox.critical(self, "网络连接失败！", f"请检查网络连接！\n{err}")
+                    self.listNotLoaded = True
+                except Exception as err:
+                    QMessageBox.critical(self, "未知错误!", f"请联系开发者,QQ:2078107317！\n{err}")
+                    self.listNotLoaded = True
+
+            threading.Thread(target=getWebsiteContent, daemon=True).start()
+
+        if ID == 1:
+            moveAction(self.btnBackground, self.half_w - 15, self.newDownBtn.y())
+            resizeAction(self.btnBackground,self.btnBackground.width(),31,31)
+            moveAction(self.downBtn,self.downBtn.x(),-30)
+            moveAction(self.newDownBtn,self.newDownBtn.x(),5)
+        else:
+            if ID == 0:
+                moveAction(self.btnBackground, self.half_w / 2 - 30, 5)
+            elif ID == 2:
+                moveAction(self.btnBackground, self.half_w + self.half_w / 2 - 80, 5)
+            else:
+                sys.exit() # 经典改内存?
+            resizeAction(self.btnBackground, self.btnBackground.width(), 108, 31)
+            moveAction(self.newDownBtn,self.newDownBtn.x(),-30)
+            moveAction(self.downBtn,self.downBtn.x(),5)
+
+        moveAction(self.main, -ID * self.w, 40)
+
+    def loadList(self, content: str):
+        global listGroupBoxesList
+
+        content = findall(r"<tab>([\s\S]*?)</tab>", content)
+        # 初始化
+        self.len = len(content)
+        listGroupBoxesList = [0] * self.len
+
+        self.listWidget.resize(600, self.len * 105 + 5)
+
+        for i in range(self.len):
+            temp = content[i]
+
+            name = findall(r'<name>([\s\S]*)</name>', temp)
+            name = name[0]
+
+            filesize = findall(r'<filesize>([\s\S]*)</filesize>', temp)
+            filesize = filesize[0]
+            filesize = findall(r'\|?([\s\S]*?)\|', filesize)
+
+            info = findall(r'<info>([\s\S]*)</info>', temp)
+            info = info[0]
+            info = info.replace(r"\n", "\n")
+
+            updata = findall(r'<updata>([\s\S]*)</updata>', temp)
+            updata = updata[0]
+            updata = findall(r'\|?([\s\S]*?)\|', updata)
+
+            version = findall(r'<version>([\s\S]*)</version>', temp)
+            version = version[0]
+            version = findall(r'\|?([\s\S]*?)\|', version)
+
+            uplog = findall(r'<uplog>([\s\S]*)</uplog>', temp)
+            uplog = uplog[0]
+            uplog = uplog.replace(r"\n", "\n")
+
+            filename = findall(r'<filename>([\s\S]*)</filename>', temp)
+            filename = filename[0]
+            filename = findall(r'\|?([\s\S]*?)\|', filename)
+
+            downurl = findall(r'<downurl>([\s\S]*)</downurl>', temp)
+            print(downurl)
+            downurl = downurl[0]
+            downurl = findall(r'\|?([\s\S]*?)\|', downurl)
+
+            videourl = findall(r'<videourl>([\s\S]*)</videourl>', temp)
+            videourl = videourl[0]
+            videourl = findall(r'\|?([\s\S]*?)\|', videourl)
+
+            icon = findall(r'<icon>([\s\S]*)</icon>', temp)
+            icon = icon[0]
+
+            listGroupBoxesList[i] = ListGroupBox(self, name, filesize, info, updata, version, uplog,
+                                                      filename, downurl, videourl, icon)
+            listGroupBoxesList[i].resize(self.w - 25, 100)
+            # Action
+            listGroupBoxesList[i].move(-600 , i * 105 + 5)
+            moveAction(listGroupBoxesList[i],5 , i * 105 + 5)
+
+            listGroupBoxesList[i].show()
+
+        self.loadingGifLable.close()
+    # 自适应
+    def resizeEvent(self, e):
+        super().resizeEvent(e)
+        self.w = self.width()
+        self.half_w = self.w / 2
+        self.h = self.height()
+        print(self.w,self.h)
+        self.titleBar.resize(self.w,28)
+        self.main.move(-self.ID * self.w, 40)
+        self.main.resize(self.w * 3,self.h - 40)
+        self.listWidget.resize(self.w, self.listWidget.height())
+        self.downWidget.resize(self.w, self.downWidget.height())
+        self.toolsWidget.resize(self.w, self.toolsWidget.height())
+        self.verLable.move(self.w - 50, 30)
+        self.listBtn.move(self.half_w / 2 - 30, 5)
+        self.downBtn.move(self.half_w - 55, self.downBtn.y())
+        self.newDownBtn.move(self.half_w - 15, self.newDownBtn.y())
+        self.toolsBtn.move(self.half_w + self.half_w / 2 - 80, 5)
+        if self.ID == 0:
+            self.btnBackground.move(self.half_w / 2 - 30, 5)
+        elif self.ID == 1:
+            self.btnBackground.move(self.half_w - 15, 5)
+        elif self.ID == 2:
+            self.btnBackground.move(self.half_w + self.half_w / 2 - 80, 5)
+        else:
+            sys.exit() # 改内存了吧???
+
+        for i in listGroupBoxesList:
+            i.resize(self.w - 25,100)
+        for i in DownGroupBoxesList:
+            i.resize(self.w - 25,73)
+
+if __name__ == '__main__':
+    QApplication.setAttribute(Qt.AA_EnableHighDpiScaling)
+    app = QApplication(sys.argv)
+    logoIcon = QIcon()
+    logoIcon.addFile(f"{skinName}/logo.png", QSize(), QIcon.Normal, QIcon.Off)
+    app.setWindowIcon(logoIcon)
+    win = Window()
+    win.show()
+    # 托盘
+    systemTray = QSystemTrayIcon()  # 创建托盘
+    systemTray.setIcon(logoIcon)  # 设置托盘图标
+    systemTray.setToolTip(u'Ghost Downloader 2')
+    systemTray.show()
+
+    sys.exit(app.exec_())

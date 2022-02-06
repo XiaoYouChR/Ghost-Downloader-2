@@ -1,0 +1,110 @@
+QCheckBox{
+        spacing: 0px;
+}
+QCheckBox:enabled:checked{
+        color: rgb(2, 65, 132);
+}
+QCheckBox:enabled:!checked{
+        color: rgb(70, 71, 73);
+}
+QCheckBox:enabled:hover{
+        color: rgb(0, 78, 161);
+}
+QCheckBox:!enabled{
+        color: rgb(80, 80, 80);
+}
+.QWidget{
+   background-color:transparent;
+}
+QLabel[blue=\"true\"]{
+	color:rgb(0, 170, 255)
+}
+QLineEdit {
+        border-radius: 10px;
+        border: 1px solid rgb(56, 99, 154);
+        background: transparent;
+}
+QLineEdit:enabled {
+        color: rgb(84, 84, 84);
+}
+QLineEdit:enabled:hover, QLineEdit:enabled:focus {
+        color: rgb(51, 51, 51);
+}
+QLineEdit:!enabled {
+        color: rgb(80, 80, 80);
+}
+QPushButton {
+	font: 11pt;
+}
+QPushButton:enabled {
+        background: rgb(120, 170, 220);
+        color: white;
+}
+QPushButton:!enabled {
+        background: rgb(180, 180, 180);
+        color: white;
+}
+QPushButton:enabled:hover{
+        background: rgb(100, 160, 220);
+}
+QPushButton:enabled:pressed{
+        background: rgb(0, 78, 161);
+}
+QGroupBox {
+        font-size: 15px;
+        border: 1px solid rgb(100, 160, 220);
+        border-radius: 10px;
+        margin-top: 10px;
+}
+QGroupBox::title {
+        color: rgb(56, 99, 154);
+        top: -12px;
+        left: 15px;
+}
+QComboBox {
+        border-radius: 12px;
+        border: 1px solid rgb(111, 156, 207);
+        background: transparent;
+}
+QComboBox:enabled {
+        color: rgb(84, 84, 84);
+}
+QComboBox:!enabled {
+        color: rgb(80, 80, 80);
+}
+QComboBox:enabled:hover, QComboBox:enabled:focus {
+        color: rgb(51, 51, 51);
+}
+QComboBox::drop-down {
+        width: 20px;
+        border: none;
+        background: transparent;
+}
+QComboBox::drop-down:hover {
+        background: rgba(255, 255, 255, 30);
+}
+QComboBox::down-arrow {
+        image: url(skins/Default/do.png);
+}
+QComboBox::down-arrow:on {
+        image: url(skins/Default/up.png);
+}
+QComboBox QAbstractItemView {
+        border: 1px solid rgb(111, 156, 207);
+        background: white;
+        outline: none;
+}
+QComboBox QAbstractItemView::item {
+        height: 25px;
+        color: rgb(73, 73, 73);
+}
+QComboBox QAbstractItemView::item:selected {
+        background: rgb(232, 241, 250);
+        color: rgb(2, 65, 132);
+}
+QTextEdit {
+        border-radius: 10px;
+        border: 1px solid rgb(0, 170, 255);
+        color: rgb(84, 84, 84);
+        background: transparent;
+}

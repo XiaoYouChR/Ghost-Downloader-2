@@ -1,0 +1,84 @@
+* {	
+	background:transparent;
+	font:12pt "Î¢ÈíÑÅºÚ";
+}
+
+QWidget#btnBackground{
+	background-color: rgb(255, 255 , 255);
+	border-radius:15px
+}
+
+QScrollBar:vertical {
+        background: transparent;
+        margin-left: 3px;
+        margin-right: 3px;
+}
+QScrollBar::handle:vertical {
+        border-radius: 5px;
+		 width:16px;
+        min-height: 10px;
+        background: rgb(170, 200, 230);
+        margin-top: 15px;
+        margin-bottom: 15px;
+}
+QScrollBar::handle:vertical:hover {
+		width:16px;
+        background: rgb(165, 195, 225);
+}
+QScrollBar::sub-line:vertical {
+        height: 15px;
+        background: transparent;
+        subcontrol-position: top;
+        image: url(skins/Default/up.png);
+}
+QScrollBar::add-line:vertical {
+        height: 15px;
+        background: transparent;
+        subcontrol-position: bottom;
+        image: url(skins/Default/do.png);
+}
+QScrollBar::sub-line:vertical:hover {
+        background: rgb(170, 200, 230);
+}
+QScrollBar::add-line:vertical:hover {
+        background: rgb(170, 200, 230);
+}
+QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical {
+        background: transparent;
+}
+
+QScrollBar#verticalScrollBar:vertical {
+        margin-top: 30px;
+}
+QLabel#verLable{
+	color:rgb(220, 220, 220);
+	font: 9px;
+}
+
+QPushButton[round="true"] {
+	border-radius: 10px;
+    border: 1px solid rgb(0, 170, 255);
+}
+QPushButton[round="true"]:enabled {
+        background: rgb(120, 170, 220);
+        color: white;
+}
+QPushButton[round="true"]:!enabled {
+        background: rgb(180, 180, 180);
+        color: white;
+}
+QPushButton[round="true"]:enabled:hover{
+        background: rgb(100, 160, 220);
+}
+QPushButton[round="true"]:enabled:pressed{
+        background: rgb(0, 78, 161);
+}
+QTextEdit {
+        border-radius: 10px;
+        border: 1px solid rgb(0, 170, 255);
+        color: rgb(136, 179, 234);
+        background: transparent;
+}
+QMessageBox {
+	background:white;
+}
