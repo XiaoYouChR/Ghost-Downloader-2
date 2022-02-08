@@ -1,11 +1,12 @@
 # coding:utf-8
 from ctypes import POINTER, cast
 from ctypes.wintypes import MSG
+from platform import platform
 
 from PySide2.QtCore import Qt
+from PySide2.QtGui import QCursor
 from PySide2.QtWidgets import QWidget
 from PySide2.QtWinExtras import QtWin
-from PySide2.QtGui import QCursor
 from win32 import win32api, win32gui
 from win32.lib import win32con
 
@@ -40,12 +41,11 @@ class FramelessWindow(QWidget):
             # 解决多屏下会出现鼠标一直为拖动状态的问题
             Pos = QCursor.pos()
             xPos, yPos = Pos.x() - self.x(), Pos.y() - self.y()
-            print(xPos, yPos, self.x(), self.y())
 
             w, h = self.width(), self.height()
             lx = xPos < self.BORDER_WIDTH
-            rx = xPos + 9 > w - self.BORDER_WIDTH
-            ty = yPos < self.BORDER_WIDTH
+            rx = xPos + 3 > w - self.BORDER_WIDTH
+            # ty = yPos < self.BORDER_WIDTH
             by = yPos > h - self.BORDER_WIDTH
 
             # if lx and ty:
@@ -139,5 +139,8 @@ class AcrylicWindow(FramelessWindow):
         self.setWindowFlags(Qt.FramelessWindowHint |
                             Qt.WindowMinMaxButtonsHint)
         self.windowEffect.addWindowAnimation(self.winId())
-        self.windowEffect.setAcrylicEffect(self.winId())
-        # self.windowEffect.setAeroEffect(self.winId())
+        OSName = platform()
+        if "Windows-7" in OSName:
+            self.windowEffect.setAeroEffect(self.winId())
+        else:
+            self.windowEffect.setAcrylicEffect(self.winId())

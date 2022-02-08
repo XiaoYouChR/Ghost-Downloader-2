@@ -2,6 +2,7 @@
 
 from ctypes import POINTER, c_bool, c_int, pointer, sizeof, WinDLL, byref
 from ctypes.wintypes import DWORD, LONG, LPCVOID
+from platform import platform
 
 from win32 import win32api, win32gui
 from win32.lib import win32con
@@ -69,16 +70,22 @@ class WindowEffect:
         )
         gradientColor = DWORD(int(gradientColor, base=16))
         # matte animation
-        animationId = DWORD(animationId)
-        # window shadow
-        accentFlags = DWORD(0x20 | 0x40 | 0x80 |
-                            0x100) if isEnableShadow else DWORD(0)
-        self.accentPolicy.AccentState = ACCENT_STATE.ACCENT_ENABLE_ACRYLICBLURBEHIND.value[0]
-        self.accentPolicy.GradientColor = gradientColor
-        self.accentPolicy.AccentFlags = accentFlags
-        self.accentPolicy.AnimationId = animationId
-        # enable acrylic effect
-        self.SetWindowCompositionAttribute(hWnd, pointer(self.winCompAttrData))
+        OSName = platform()
+        if "Windows-11" in OSName: # 劲爆Win11
+            animationId = DWORD(animationId)
+            # window shadow
+            accentFlags = DWORD(0x20 | 0x40 | 0x80 |
+                                0x100) if isEnableShadow else DWORD(0)
+            self.accentPolicy.AccentState = ACCENT_STATE.ACCENT_ENABLE_ACRYLICBLURBEHIND.value[0]
+            self.accentPolicy.GradientColor = gradientColor
+            self.accentPolicy.AccentFlags = accentFlags
+            self.accentPolicy.AnimationId = animationId
+            # enable acrylic effect
+            self.SetWindowCompositionAttribute(hWnd, pointer(self.winCompAttrData))
+        elif "Windows-10" in OSName: # 劲爆Win10
+            self.accentPolicy.AccentState = ACCENT_STATE.ACCENT_ENABLE_ACRYLICBLURBEHIND.value[0]
+            self.accentPolicy.GradientColor = gradientColor
+            self.SetWindowCompositionAttribute(hWnd, pointer(self.winCompAttrData))
 
     def setAeroEffect(self, hWnd):
         """ Add the aero effect to the window

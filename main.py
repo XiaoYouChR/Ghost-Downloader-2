@@ -9,39 +9,80 @@ from urllib import request
 from webbrowser import open_new_tab
 
 import requests
-from PySide2.QtCore import QRect, QObject, Signal, QSize
+from PySide2.QtCore import QRect, QObject, Signal, QSize, QLockFile
 from PySide2.QtGui import Qt, QPixmap, QIcon, QMovie
+from PySide2.QtMultimedia import QSound
 from PySide2.QtWidgets import QScrollArea, QWidget, QPushButton, QSizePolicy, QLabel, QApplication, QMessageBox, \
     QComboBox, QGroupBox, QHBoxLayout, QVBoxLayout, QTextEdit, QLineEdit, QSpacerItem, QFileDialog, \
     QSystemTrayIcon, QFrame, QPlainTextEdit, QTableWidget, QTableWidgetItem
-from PySide2.QtMultimedia import QSound
 
 from framelesswindow import AcrylicWindow
 from titlebar import MainWindowTitleBar
 
+# 创建application
+QApplication.setAttribute(Qt.AA_EnableHighDpiScaling)
+app = QApplication(sys.argv)
+# 检测程序是否重复运行
+lockFile = QLockFile("./lock.lck")
+if not lockFile.tryLock(2000):
+    msg_box = QMessageBox()
+    msg_box.setWindowTitle("提示")
+    msg_box.setText("GhostDownloader2已在运行!")
+    msg_box.setIcon(QMessageBox.Information)
+    msg_box.addButton("确定", QMessageBox.YesRole)
+    msg_box.exec()
+    sys.exit(-1)
 # 创建/读取 配置文件
 if path.exists("config.cfg") == True:
-    with open("config.cfg", "r") as f:
-        _ = []  # 生成空表格
+    try:
+        with open("config.cfg", "r") as f:
+            _ = []  # 生成空表格
 
-        for line in f.readlines():
-            line = line.strip('\n')  # 去掉列表中每一个元素的换行符
-            _.append(line)
+            for line in f.readlines():
+                line = line.strip('\n')  # 去掉列表中每一个元素的换行符
+                _.append(line)
 
-        threadNum = int(_[0])
-        print(threadNum)
-        defaultPath = _[1]
-        print(defaultPath)
-        skinName = _[2]
-        print(skinName)
-        reduceSpeed = int(_[3])
-        print(reduceSpeed)
-        reduceSpeed_2 = int(_[4])
-        print(reduceSpeed_2)
+            threadNum = int(_[0])
+            print(threadNum)
+            defaultPath = _[1]
+            print(defaultPath)
+            skinName = _[2]
+            print(skinName)
+            reduceSpeed = int(_[3])
+            print(reduceSpeed)
+            reduceSpeed_2 = int(_[4])
+            print(reduceSpeed_2)
+            GUI = int(_[5])
+            print(GUI)
+            f.close()
+    except:
         f.close()
+        with open("config.cfg", "w") as f:
+            f.write("32\n%s\nskins/Default\n50\n200\n1" % getcwd().replace("\\", "/"))
+            f.close()
+        with open("config.cfg", "r") as f:
+            _ = []  # 生成空表格
+
+            for line in f.readlines():
+                line = line.strip('\n')  # 去掉列表中每一个元素的换行符
+                _.append(line)
+
+            threadNum = int(_[0])
+            print(threadNum)
+            defaultPath = _[1]
+            print(defaultPath)
+            skinName = _[2]
+            print(skinName)
+            reduceSpeed = _[3]
+            print(reduceSpeed)
+            reduceSpeed_2 = _[4]
+            print(reduceSpeed_2)
+            GUI = int(_[5])
+            print(GUI)
+            f.close()
 else:
     with open("config.cfg", "w") as f:
-        f.write("8\n%s\nskins/Default\n50\n200" % getcwd().replace("\\", "/"))
+        f.write("32\n%s\nskins/Default\n50\n200\n1" % getcwd().replace("\\", "/"))
         f.close()
     with open("config.cfg", "r") as f:
         _ = []  # 生成空表格
@@ -60,7 +101,12 @@ else:
         print(reduceSpeed)
         reduceSpeed_2 = _[4]
         print(reduceSpeed_2)
+        GUI = int(_[5])
+        print(GUI)
         f.close()
+logoIcon = QIcon()
+logoIcon.addFile(f"{skinName}/logo.png", QSize(), QIcon.Normal, QIcon.Off)
+app.setWindowIcon(logoIcon)
 
 Version = 200
 headers = {
@@ -125,13 +171,33 @@ def countActionValues(start: int, end: int):
     actionValuesList = [i * temp + start for i in actionValuesList]
     return actionValuesList
 
-def resizeAction( object, start: int, end: int, height: int):
-    actionValuesList = countActionValues(start, end)
-
+def resizeAction( object, width: int, height: int):
     def action():
-        for i in actionValuesList:
-            globalSignal.resize_object.emit(object, i, height)
-            time.sleep(0.013)
+
+        objW = object.width()
+        objH = object.height()
+
+        if objW != width and objH != height:
+            actionWidthesList = countActionValues(objW, width)
+            actionHeightsList = countActionValues(objH, height)
+
+            for i in range(len(actionWidthesList)):
+                globalSignal.resize_object.emit(object, actionWidthesList[i], actionHeightsList[i])
+                time.sleep(0.013)
+
+        elif objW != width:
+            actionWidthesList = countActionValues(objW, width)
+
+            for i in actionWidthesList:
+                globalSignal.resize_object.emit(object, i, height)
+                time.sleep(0.013)
+
+        elif objH != height:
+            actionHeightsList = countActionValues(objH, height)
+
+            for i in actionHeightsList:
+                globalSignal.resize_object.emit(object, width, i)
+                time.sleep(0.013)
 
     threading.Thread(target=action, daemon=True).start()
 
@@ -141,7 +207,16 @@ def moveAction( object, x: int, y: int, close = False):
         objX = object.x()
         objY = object.y()
 
-        if objX != x:
+        if objX != x and objY != y:
+
+            actionXsList = countActionValues(objX, x)
+            actionYsList = countActionValues(objY, y)
+
+            for i in range(len(actionXsList)):
+                globalSignal.move_object.emit(object, actionXsList[i], actionYsList[i])
+                time.sleep(0.013)
+
+        elif objX != x:
 
             actionValuesList = countActionValues(objX, x)
 
@@ -157,15 +232,6 @@ def moveAction( object, x: int, y: int, close = False):
                 globalSignal.move_object.emit(object, objX, i)
                 time.sleep(0.013)
 
-        elif objX != x and objY != y:
-
-            actionXsList = countActionValues(objX, x)
-            actionYsList = countActionValues(objY, y)
-
-            for i in range(len(actionXsList)):
-                globalSignal.move_object.emit(object, actionXsList[i], actionYsList[i])
-                time.sleep(0.013)
-
         if close == True:
             object.close()
 
@@ -173,8 +239,8 @@ def moveAction( object, x: int, y: int, close = False):
 
 def changeConfig():
     with open("config.cfg", "w") as f:
-        f.write(f"{threadNum}\n{defaultPath}\n{skinName}\n{reduceSpeed}\n{reduceSpeed_2}")
-        print(f"{threadNum}\n{defaultPath}\n{skinName}\n{reduceSpeed}\n{reduceSpeed_2}")
+        f.write(f"{threadNum}\n{defaultPath}\n{skinName}\n{reduceSpeed}\n{reduceSpeed_2}\n{GUI}")
+        print(f"{threadNum}\n{defaultPath}\n{skinName}\n{reduceSpeed}\n{reduceSpeed_2}\n{GUI}")
         f.close()
 
 def decidePathWin(parent,texiEdit,default=False):
@@ -220,7 +286,7 @@ def newDownloadTask(iconPath:str,url:str,filename:str,download_dir:str,blocks_nu
     ID = len(DownGroupBoxesList) - 1
 
     try:
-        DownGroupBoxesList[ID].resize(win.w - 20, 73)
+        DownGroupBoxesList[ID].resize(window.w - 20, 73)
     except:
         DownGroupBoxesList[ID].resize(580, 73)
 
@@ -473,7 +539,7 @@ class NewTaskWindow(AcrylicWindow):
     def addTask(self):
         self.addTaskBtn.setEnabled(False)
         for i in range(len(self.url)):
-            newDownloadTask(f"{skinName}/logo.png",self.url[i],self.tableList[i][1].text(),self.pathEdit.text(),threadNum,win)
+            newDownloadTask(f"{skinName}/logo.png", self.url[i], self.tableList[i][1].text(), self.pathEdit.text(), threadNum, window)
         self.close()
 
 class MyProgressBar(QWidget):
@@ -502,7 +568,7 @@ class MyProgressBar(QWidget):
 
     def setValue(self,value):
         self.value = value
-        resizeAction(self.progresser, self.progresser.width(), self.value * self.width() / 100, self.height())
+        resizeAction(self.progresser, self.value * self.width() / 100, self.height())
 
 class SettingsWindow(AcrylicWindow):
     def __init__(self,parent=None):
@@ -569,36 +635,56 @@ class SettingsWindow(AcrylicWindow):
 
         self.verticalLayout.addWidget(self.threadNumG)
 
-        self.restartg = QGroupBox(self)
-        self.restartg.setObjectName(u"restartg")
+        self.restartG = QGroupBox(self)
+        self.restartG.setObjectName(u"restartG")
 
-        self.horizontalLayout_5 = QHBoxLayout(self.restartg)
+        self.horizontalLayout_5 = QHBoxLayout(self.restartG)
         self.horizontalLayout_5.setObjectName(u"horizontalLayout_5")
 
-        self.label = QLabel(self.restartg)
+        self.label = QLabel(self.restartG)
         self.label.setObjectName(u"label")
         self.label.setProperty("blue", True)
         self.horizontalLayout_5.addWidget(self.label)
 
-        self.reduceSpeedEdit = QLineEdit(self.restartg)
+        self.reduceSpeedEdit = QLineEdit(self.restartG)
         self.reduceSpeedEdit.setObjectName(u"reduceSpeedEdit")
         self.horizontalLayout_5.addWidget(self.reduceSpeedEdit)
 
-        self.label_2 = QLabel(self.restartg)
+        self.label_2 = QLabel(self.restartG)
         self.label_2.setObjectName(u"label_2")
         self.label_2.setProperty("blue", True)
         self.horizontalLayout_5.addWidget(self.label_2)
 
-        self.reduceSpeedEdit_2 = QLineEdit(self.restartg)
+        self.reduceSpeedEdit_2 = QLineEdit(self.restartG)
         self.reduceSpeedEdit_2.setObjectName(u"reduceSpeedEdit_2")
         self.horizontalLayout_5.addWidget(self.reduceSpeedEdit_2)
 
-        self.label_3 = QLabel(self.restartg)
+        self.label_3 = QLabel(self.restartG)
         self.label_3.setObjectName(u"label_3")
         self.label_3.setProperty("blue", True)
         self.horizontalLayout_5.addWidget(self.label_3)
 
-        self.verticalLayout.addWidget(self.restartg)
+        self.verticalLayout.addWidget(self.restartG)
+
+        self.GUIG = QGroupBox(self)
+        self.GUIG.setObjectName(u"GUIG")
+
+        self.horizontalLayout_6 = QHBoxLayout(self.GUIG)
+        self.horizontalLayout_6.setObjectName(u"horizontalLayout_6")
+
+        self.label_4 = QLabel(self.GUIG)
+        self.label_4.setObjectName(u"label_4")
+        self.label_4.setProperty("blue", True)
+        self.horizontalLayout_6.addWidget(self.label_4)
+
+        self.horizontalSpacer_2 = QSpacerItem(40, 20, QSizePolicy.Expanding, QSizePolicy.Minimum)
+        self.horizontalLayout_6.addItem(self.horizontalSpacer_2)
+
+        self.GUIC = QComboBox(self.GUIG)
+        self.GUIC.setObjectName(u"GUIC")
+        self.horizontalLayout_6.addWidget(self.GUIC)
+
+        self.verticalLayout.addWidget(self.GUIG)
 
         self.horizontalLayout_4 = QHBoxLayout()
         self.horizontalLayout_4.setObjectName(u"horizontalLayout_4")
@@ -653,12 +739,14 @@ class SettingsWindow(AcrylicWindow):
         self.decidePathBtn.setText("选择路径")
         self.threadNumG.setTitle("\u4e0b\u8f7d\u7ebf\u7a0b\u8bbe\u7f6e")
         self.tipLabel.setText("请勿设置过高的下载线程,因为这可能造成电脑卡顿和下载失败!")
-        self.restartg.setTitle("\u81ea\u52a8\u91cd\u8fde\u8bbe\u7f6e")
+        self.restartG.setTitle("\u81ea\u52a8\u91cd\u8fde\u8bbe\u7f6e")
         self.label.setText("\u5f53\u4e0b\u8f7d\u964d\u901f\u9ad8\u4e8e")
         self.label_2.setText("%, 且下载速度低于")
         self.label_3.setText("KB/s\u65f6, \u81ea\u52a8\u91cd\u8fde.")
+        self.GUIG.setTitle("界面设置")
+        self.label_4.setText("在这里选择你想要的界面样式")
         self.getUpBtn.setText("\u68c0\u67e5\u66f4\u65b0")
-        self.nowVerLable.setText("当前版本:2.0Insider,已是最新!")
+        self.nowVerLable.setText("当前版本:2.0-alpha.2,已是最新!")
         self.jiaQunBtn.setText("\u70b9\u51fb\u52a0\u5165\u7fa4\u804a: \u6770\u514b\u59da\u306e\u5c0f\u5c4b \u4ee5\u83b7\u53d6\u652f\u6301")
         self.shengMingBtn.setText("\u4f7f\u7528\u58f0\u660e")
         self.myIndexBtn.setText("\u6253\u5f00\u6653\u6e38ChR\u7684\u4e3b\u9875")
@@ -666,9 +754,11 @@ class SettingsWindow(AcrylicWindow):
         self.reduceSpeedEdit.setText(str(reduceSpeed))
         self.reduceSpeedEdit_2.setText(str(reduceSpeed_2))
         self.DefaultPathEdit.setText(defaultPath)
-        self.threadNumC.addItems([str(i + 1) for i in range(64)])
+        self.threadNumC.addItems([str(i + 1) for i in range(1024)])
+        self.GUIC.addItems(["图标型(实验性功能)","列表型"])
 
         self.threadNumC.setCurrentIndex(threadNum - 1)
+        self.GUIC.setCurrentIndex(GUI)
     #连接函数
         self.DefaultPathEdit.editingFinished.connect(self.changePath)
         self.jiaQunBtn.clicked.connect(lambda: open_new_tab("https://jq.qq.com/?_wv=1027&k=Q4yTwvag"))
@@ -686,8 +776,7 @@ class SettingsWindow(AcrylicWindow):
                                                                        "网站:www.xiaoyouchr.cn/jod\n"
                                                                        "本声明解释权归晓游ChR所有\n"
                                                                        "若你从以上声明的下载来源以外的途径下载了本软件，本软件制作方概不负责！"),self.logoImg))
-
-        self.show()
+        self.GUIC.currentIndexChanged.connect(self.changeGUI)
 
     def changeReduceSpeed(self):
         global reduceSpeed
@@ -754,12 +843,12 @@ class SettingsWindow(AcrylicWindow):
         temp = threadNum
         threadNum = int(self.threadNumC.currentText())
         print(threadNum)
-        if temp <= 32:
-            if threadNum > 32:
+        if temp >= 32:
+            if threadNum < 32:
                 warning = QMessageBox.question(
                     self,
                     '警告！',
-                    '你选择的线程过高！建议4核3Ghz及以上的CPU使用！\n\n你确定要超过32个下载线程吗？')
+                    '你选择的线程过低！很可能会造成下载速度过慢或其他BUG！\n\n你确定要选择小于32个下载线程吗？')
                 if warning == QMessageBox.Yes:
                     changeConfig()
                 if warning == QMessageBox.No:
@@ -769,6 +858,11 @@ class SettingsWindow(AcrylicWindow):
                 changeConfig()
         else:
             changeConfig()
+
+    def changeGUI(self):
+        global GUI
+        GUI = int(self.GUIC.currentIndex())
+        changeConfig()
 
 class DLWorker:
     def __init__(self, name:str, url:str, range_start, range_end, cache_dir, finish_callback):
@@ -916,7 +1010,7 @@ class ListGroupBox(QGroupBox):
         self.downBtn.setGeometry(QRect(450, 0, 41, 21))
         self.downBtn.setEnabled(False)
 
-        resizeAction(self.moreWidget, 491, 61, 21)
+        resizeAction(self.moreWidget, 61, 21)
         moveAction(self.downBtn, 20, 0)
         self.moreBtn.setText("◀")
         self.opened = False
@@ -940,14 +1034,14 @@ class ListGroupBox(QGroupBox):
 
     def Open(self):
         if self.opened == False: # 没有展开就展开
-            resizeAction(self.moreWidget,61,491,21)
+            resizeAction(self.moreWidget,491,21)
             moveAction(self.moreWidget,self.w - 500, 20)
             moveAction(self.downBtn,450,0)
             self.moreBtn.setText("▶")
             self.opened = True
 
         elif self.opened == True: # 展开了就收起
-            resizeAction(self.moreWidget,491,61,21)
+            resizeAction(self.moreWidget,61,21)
             moveAction(self.moreWidget,self.w - 70, 20)
             moveAction(self.downBtn,20,0)
             self.moreBtn.setText("◀")
@@ -980,11 +1074,80 @@ class ListGroupBox(QGroupBox):
         elif self.opened == True:
             self.moreWidget.move(self.w - 500, 20)
 
+class PictureGroupBox(QWidget):
+    def __init__(self, parent, name:str, filesize, info:str, updata, version, uplog:str, filename, downurl, videourl, icon):
+        super().__init__(parent=parent.listWidget)
+        self.setObjectName("PictureGroupBox")
+        self.resize(130, 130)
+        self.setStyleSheet(""".QPushButton{border-radius: 10px;
+                                       border: 1px solid rgb(100, 160, 220);
+                                       background-color:rgba(255,255,255,80);}
+                              .QPushButton:hover{background-color:rgba(255,255,255,60);}
+                              .QPushButton:pressed{background-color:rgba(255,255,255,30);}
+                              QLabel#nameLabel{font:9pt;}""")
+        
+        self.w = self.width()
+        self.h = self.height()
+        print(self.w,self.h)
+
+        self.name = name
+        self.filesize = filesize
+        self.info = info
+        self.updata = updata
+        self.version = version
+        self.uplog = uplog
+        self.filename = filename
+        self.downurl = downurl
+        self.videourl = videourl
+        self.icon = icon
+
+        # 初始化ComboBox选项
+        self.currentIndex = 0
+
+        # setUp
+        self.nameLabel = QLabel(self)
+        self.nameLabel.setObjectName("nameLabel")
+        self.nameLabel.move(0,108)
+        self.nameLabel.resize(130,20)
+        self.nameLabel.setWordWrap(True)
+        self.nameLabel.setAlignment(Qt.AlignCenter)
+        self.nameLabel.setText(self.name)
+
+        self.imgLable = QLabel(self)
+        self.imgLable.setObjectName("imgLable")
+        self.imgLable.move(15,5)
+        self.imgLable.resize(100,100)
+        self.imgLable.setScaledContents(True)
+
+        self.BGButton = QPushButton(self)
+        self.BGButton.setObjectName("BGButton")
+        self.BGButton.resize(self.w,self.h)
+
+        threading.Thread(target=self.setImg,daemon=True).start() # 设置头图
+
+        # Connection
+        self.BGButton.clicked.connect(self.Open)
+
+    def setImg(self):
+        self.icon = requests.get(self.icon).content
+        with open(f'temp/{self.name}-icon','wb') as f:
+            f.write(self.icon)
+            f.close()
+        self.icon = QPixmap(f'temp/{self.name}-icon')
+        self.imgLable.setPixmap(self.icon)
+
+    def Open(self):
+        moveAction(self.BGButton,3,3)
+        resizeAction(self.BGButton,self.parent().width()-20,self.parent().height()-100)
+        moveAction(self,0,0)
+        resizeAction(self,self.parent().width(),self.parent().height())
+        print(self.width(),self.parent().width(),self.parent().height())
+
 class DownGroupBox(QGroupBox):
     def __init__(self,icon:QPixmap,url:str,filename:str,download_dir:str,blocks_num:int,parent=None):
         super().__init__(parent=parent.downWidget)
 
-        assert 0 <= blocks_num <= 64
+        assert 1 <= blocks_num <= 1024
 
         self.w = self.width()
         self.h = self.height()
@@ -1018,7 +1181,7 @@ class DownGroupBox(QGroupBox):
             # 显示基本信息
             readable_size = self.__get_readable_size(self.file_size)
             pathfilename = f'{self.download_dir}/{self.filename}'
-            sys.stdout.write(f"----- D2wnloader [v2.0.b8] -----\n[url] {self.url}\n[path] {pathfilename}\n[size] {readable_size}\n")
+            sys.stdout.write(f"----- D2wnloader [v2.0-alpha.2] -----\n[url] {self.url}\n[path] {pathfilename}\n[size] {readable_size}\n")
 
         # 初始化Pause状态
         self.Paused = False
@@ -1521,7 +1684,7 @@ class Window(AcrylicWindow):
         self.downBtn.clicked.connect(lambda: self.changeInterface(1))
         self.toolsBtn.clicked.connect(lambda: self.changeInterface(2))
         self.newDownBtn.clicked.connect(NewTaskWindow)
-        self.titleBar.setBtn.clicked.connect(SettingsWindow)
+        self.titleBar.setBtn.clicked.connect(settingsWindow.show)
 
         # 读取下载历史并自动开始
         if path.exists("history.hst") == True:
@@ -1696,7 +1859,7 @@ class Window(AcrylicWindow):
         self.listBtn.setText("推荐资源")
         self.downBtn.setText("任务列表")
         self.toolsBtn.setText("实用工具")
-        self.verLable.setText("2.0Insider")
+        self.verLable.setText("2.0-alpha.2")
 
         self.listNotLoaded = False
         # 加载GIF
@@ -1760,8 +1923,8 @@ class Window(AcrylicWindow):
             threading.Thread(target=getWebsiteContent, daemon=True).start()
 
         if ID == 1:
-            moveAction(self.btnBackground, self.half_w - 15, self.newDownBtn.y())
-            resizeAction(self.btnBackground,self.btnBackground.width(),31,31)
+            moveAction(self.btnBackground, self.half_w - 15, self.downBtn.y())
+            resizeAction(self.btnBackground,31,31)
             moveAction(self.downBtn,self.downBtn.x(),-30)
             moveAction(self.newDownBtn,self.newDownBtn.x(),5)
         else:
@@ -1771,7 +1934,7 @@ class Window(AcrylicWindow):
                 moveAction(self.btnBackground, self.half_w + self.half_w / 2 - 80, 5)
             else:
                 sys.exit() # 经典改内存?
-            resizeAction(self.btnBackground, self.btnBackground.width(), 108, 31)
+            resizeAction(self.btnBackground, 108, 31)
             moveAction(self.newDownBtn,self.newDownBtn.x(),-30)
             moveAction(self.downBtn,self.downBtn.x(),5)
 
@@ -1785,7 +1948,11 @@ class Window(AcrylicWindow):
         self.len = len(content)
         listGroupBoxesList = [0] * self.len
 
-        self.listWidget.resize(600, self.len * 105 + 5)
+        # 设置listWidget大小
+        if GUI: # 列表型
+            self.listWidget.resize(600, self.len * 105 + 5)
+        elif not GUI: # 图案型
+            self.listWidget.resize(600, self.len * 105 + 5)
 
         for i in range(self.len):
             temp = content[i]
@@ -1818,7 +1985,6 @@ class Window(AcrylicWindow):
             filename = findall(r'\|?([\s\S]*?)\|', filename)
 
             downurl = findall(r'<downurl>([\s\S]*)</downurl>', temp)
-            print(downurl)
             downurl = downurl[0]
             downurl = findall(r'\|?([\s\S]*?)\|', downurl)
 
@@ -1828,15 +1994,21 @@ class Window(AcrylicWindow):
 
             icon = findall(r'<icon>([\s\S]*)</icon>', temp)
             icon = icon[0]
+            if GUI: # 列表型
+                listGroupBoxesList[i] = ListGroupBox(self, name, filesize, info, updata, version, uplog,
+                                                          filename, downurl, videourl, icon)
+                listGroupBoxesList[i].resize(self.w - 25, 100)
+                # Action
+                listGroupBoxesList[i].move(-600 , i * 105 + 5)
+                moveAction(listGroupBoxesList[i],5 , i * 105 + 5)
 
-            listGroupBoxesList[i] = ListGroupBox(self, name, filesize, info, updata, version, uplog,
-                                                      filename, downurl, videourl, icon)
-            listGroupBoxesList[i].resize(self.w - 25, 100)
-            # Action
-            listGroupBoxesList[i].move(-600 , i * 105 + 5)
-            moveAction(listGroupBoxesList[i],5 , i * 105 + 5)
-
-            listGroupBoxesList[i].show()
+                listGroupBoxesList[i].show()
+            if not GUI: # 图标型
+                listGroupBoxesList[i] = PictureGroupBox(self, name, filesize, info, updata, version, uplog,
+                                                     filename, downurl, videourl, icon)
+                listGroupBoxesList[i].resize(130, 130)
+                listGroupBoxesList[i].move(10,i * 150+10)
+                listGroupBoxesList[i].show()
 
         self.loadingGifLable.close()
     # 自适应
@@ -1866,19 +2038,21 @@ class Window(AcrylicWindow):
         else:
             sys.exit() # 改内存了吧???
 
-        for i in listGroupBoxesList:
-            i.resize(self.w - 25,100)
+        if GUI:
+            for i in listGroupBoxesList:
+                i.resize(self.w - 25,100)
+        elif GUI:
+            pass
+
         for i in DownGroupBoxesList:
             i.resize(self.w - 25,73)
 
 if __name__ == '__main__':
-    QApplication.setAttribute(Qt.AA_EnableHighDpiScaling)
-    app = QApplication(sys.argv)
-    logoIcon = QIcon()
-    logoIcon.addFile(f"{skinName}/logo.png", QSize(), QIcon.Normal, QIcon.Off)
-    app.setWindowIcon(logoIcon)
-    win = Window()
-    win.show()
+    # 初始化设置窗口
+    settingsWindow = SettingsWindow()
+
+    window = Window()
+    window.show()
     # 托盘
     systemTray = QSystemTrayIcon()  # 创建托盘
     systemTray.setIcon(logoIcon)  # 设置托盘图标
