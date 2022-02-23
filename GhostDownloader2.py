@@ -2,7 +2,9 @@ import ssl
 import sys
 import threading
 import time
+from datetime import timedelta
 from glob import glob
+from multiprocessing import freeze_support
 from os import path, getcwd, makedirs, access, W_OK, startfile, remove
 from re import findall, IGNORECASE, compile, sub
 from urllib import request
@@ -11,135 +13,14 @@ from webbrowser import open_new_tab
 import requests
 from PySide2.QtCore import QRect, Signal, QSize, QLockFile, QObject
 from PySide2.QtGui import Qt, QPixmap, QIcon, QMovie
-from PySide2.QtMultimedia import QSound
 from PySide2.QtWidgets import QScrollArea, QWidget, QPushButton, QSizePolicy, QLabel, QApplication, QMessageBox, \
     QComboBox, QGroupBox, QHBoxLayout, QVBoxLayout, QTextEdit, QLineEdit, QSpacerItem, QFileDialog, \
     QSystemTrayIcon, QFrame, QPlainTextEdit, QTableWidget, QTableWidgetItem, QRadioButton
 
+from DownloadEngine import DownloadEngine
 from framelesswindow import AcrylicWindow, AcrylicDialog
 from titlebar import MainWindowTitleBar
 
-# 忽略 https 警告
-ssl._create_default_https_context = ssl._create_unverified_context
-requests.packages.urllib3.disable_warnings()
-
-# 创建application
-QApplication.setAttribute(Qt.AA_EnableHighDpiScaling)
-app = QApplication(sys.argv)
-
-# 检测程序是否重复运行
-lockFile = QLockFile("./lock.lck")
-if not lockFile.tryLock(2000):
-    msg_box = QMessageBox()
-    msg_box.setWindowTitle("提示")
-    msg_box.setText("GhostDownloader2已在运行!")
-    msg_box.setIcon(QMessageBox.Information)
-    msg_box.addButton("确定", QMessageBox.YesRole)
-    msg_box.exec()
-    sys.exit(-1)
-
-# 创建/读取 配置文件
-if path.exists("config.cfg") == True:
-    try:
-        with open("config.cfg", "r") as f:
-            _ = []  # 生成空表格
-
-            for line in f.readlines():
-                line = line.strip('\n')  # 去掉列表中每一个元素的换行符
-                _.append(line)
-
-            threadNum = int(_[0])
-            print(threadNum)
-            defaultPath = _[1]
-            print(defaultPath)
-            skinName = _[2]
-            print(skinName)
-            reduceSpeed = int(_[3])
-            print(reduceSpeed)
-            reduceSpeed_2 = int(_[4])
-            print(reduceSpeed_2)
-            GUI = int(_[5])
-            print(GUI)
-            f.close()
-    except:
-        f.close()
-        with open("config.cfg", "w") as f:
-            f.write("32\n%s\nskins/Default\n50\n200\n1" % getcwd().replace("\\", "/"))
-            f.close()
-        with open("config.cfg", "r") as f:
-            _ = []  # 生成空表格
-
-            for line in f.readlines():
-                line = line.strip('\n')  # 去掉列表中每一个元素的换行符
-                _.append(line)
-
-            threadNum = int(_[0])
-            print(threadNum)
-            defaultPath = _[1]
-            print(defaultPath)
-            skinName = _[2]
-            print(skinName)
-            reduceSpeed = _[3]
-            print(reduceSpeed)
-            reduceSpeed_2 = _[4]
-            print(reduceSpeed_2)
-            GUI = int(_[5])
-            print(GUI)
-            f.close()
-else:
-    with open("config.cfg", "w") as f:
-        f.write("32\n%s\nskins/Default\n50\n200\n1" % getcwd().replace("\\", "/"))
-        f.close()
-    with open("config.cfg", "r") as f:
-        _ = []  # 生成空表格
-
-        for line in f.readlines():
-            line = line.strip('\n')  # 去掉列表中每一个元素的换行符
-            _.append(line)
-
-        threadNum = int(_[0])
-        print(threadNum)
-        defaultPath = _[1]
-        print(defaultPath)
-        skinName = _[2]
-        print(skinName)
-        reduceSpeed = _[3]
-        print(reduceSpeed)
-        reduceSpeed_2 = _[4]
-        print(reduceSpeed_2)
-        GUI = int(_[5])
-        print(GUI)
-        f.close()
-
-logoIcon = QIcon()
-logoIcon.addFile(f"{skinName}/logo.png", QSize(), QIcon.Normal, QIcon.Off)
-app.setWindowIcon(logoIcon)
-
-Version = 200
-headers = {
-    "user-agent": "Mozilla/5.0 (Windows NT 6.3; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/93.0.4577.63 Safari/537.36 Edg/93.0.961.44"
-}
-listGroupBoxesList = []
-DownGroupBoxesList = []
-urlRe = compile(r"^" +
-                "((?:https?|ftp)://)" +
-                "(?:\\S+(?::\\S*)?@)?" +
-                "(?:" +
-                "(?:[1-9]\\d?|1\\d\\d|2[01]\\d|22[0-3])" +
-                "(?:\\.(?:1?\\d{1,2}|2[0-4]\\d|25[0-5])){2}" +
-                "(\\.(?:[1-9]\\d?|1\\d\\d|2[0-4]\\d|25[0-4]))" +
-                "|" +
-                "((?:[a-z\\u00a1-\\uffff0-9]-*)*[a-z\\u00a1-\\uffff0-9]+)" +
-                '(?:\\.(?:[a-z\\u00a1-\\uffff0-9]-*)*[a-z\\u00a1-\\uffff0-9]+)*' +
-                "(\\.([a-z\\u00a1-\\uffff]{2,}))" +
-                ")" +
-                "(?::\\d{2,5})?" +
-                "(?:/\\S*)?" +
-                "$", IGNORECASE)
-
-# 忽略 https 警告
-ssl._create_default_https_context = ssl._create_unverified_context
-requests.packages.urllib3.disable_warnings()
 
 # 槽
 def Move(object, x, y):
@@ -304,57 +185,6 @@ def newDownloadTask(iconPath: str, url: str, filename: str, download_dir: str, b
     parent.downWidget.resize(parent.downWidget.width(), (ID + 1) * 78 + 5)
 
 # 类
-class DLWorker:
-    def __init__(self, name:str, url:str, range_start, range_end, cache_dir, finish_callback):
-        self.name = name
-        self.url = url
-        self.cache_filename = f"{cache_dir}{name}.d2l"
-        self.range_start = range_start # 固定不动
-        self.range_end = range_end # 固定不动
-        self.range_curser = range_start # curser 所指尚未开始
-        self.finish_callback = finish_callback # 通知调用 DLWorker 的地方
-        self.terminate_flag = False # 该标志用于终结自己
-        self.FINISH_TYPE = "" # DONE 完成工作, HELP 需要帮忙, RETIRE 不干了
-
-    def __run(self):
-        chunk_size = 1*1024 # 1 kb
-        headers = {'Range': f'bytes={self.range_curser}-{self.range_end}', 'Accept-Encoding': '*','user-agent': 'Mozilla/5.0 (Windows NT 6.3; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/93.0.4577.63 Safari/537.36 Edg/93.0.961.44'}
-        req = requests.get(self.url, stream=True, verify=False, headers=headers)
-        with open(self.cache_filename, "wb") as cache:
-            for chunk in req.iter_content(chunk_size=chunk_size):
-                if self.terminate_flag:
-                    break
-                cache.write(chunk)
-                self.range_curser += len(chunk)
-        if not self.terminate_flag: # 只有正常退出才能标记 DONE，但是三条途径都经过此处
-            self.FINISH_TYPE = "DONE"
-        req.close()
-        self.finish_callback(self) # 执行回调函数，根据 FINISH_TYPE 结局不同
-
-    def start(self):
-        threading.Thread(target=self.__run,daemon=True).start()
-
-    def help(self):
-        self.FINISH_TYPE = "HELP"
-        self.terminate_flag = True
-
-    def retire(self):
-        self.FINISH_TYPE = "RETIRE"
-        self.terminate_flag = True
-
-    def __lt__(self, another):
-        """用于排序"""
-        return self.range_start < another.range_start
-
-    def get_progress(self):
-        """获得进度"""
-        _progress = {
-            "curser": self.range_curser,
-            "start": self.range_start,
-            "end": self.range_end
-        }
-        return _progress
-
 class DownGroupBox(QGroupBox):
     def __init__(self, icon: QPixmap, url: str, filename: str, download_dir: str, blocks_num: int, parent=None):
         super().__init__(parent=parent.downWidget)
@@ -365,106 +195,183 @@ class DownGroupBox(QGroupBox):
         self.h = self.height()
 
         self.url = url
-        # filename = self.url.split("/")[-1]
-        # filename = parse.unquote(filename)
         self.filename = filename
         self.download_dir = download_dir
+        self.cache_dir = f"{self.download_dir}/.cache/"
         self.blocks_num = blocks_num
         self.__bad_url_flag = False
-        self.file_size = self.__get_size()
-        if not self.__bad_url_flag:
-            # 建立下载目录
-            if not path.exists(self.download_dir):
-                makedirs(self.download_dir)
-            # 建立缓存目录
-            self.cache_dir = f"{self.download_dir}/.cache/"
-            if not path.exists(self.cache_dir):
-                makedirs(self.cache_dir)
-            # 分块下载
-            self.startdlsince = time.time()
-            self.workers = []  # 装载 DLWorker
-            self.AAEK = self.__get_AAEK_from_cache()  # 需要确定 self.file_size 和 self.block_num
-            # 测速
-            self.__done = threading.Event()
-            self.__download_record = []
-            threading.Thread(target=self.__supervise, daemon=True).start()
-            # 主进程信号，直到下载结束后解除
-            self.__main_thread_done = threading.Event()
-            # 显示基本信息
-            readable_size = self.__get_readable_size(self.file_size)
-            pathfilename = f'{self.download_dir}/{self.filename}'
-            sys.stdout.write(
-                f"----- D2wnloader [v2.0-beta.1] -----\n[url] {self.url}\n[path] {pathfilename}\n[size] {readable_size}\n")
+        self.fileSize = self.__get_size()
 
-        # 初始化Pause状态
-        self.Paused = False
+        if self.fileSize == 0:
+            self.clear()
 
-        # setUpGUI
-        self.setStyleSheet(".QLabel {color: rgb(70, 70, 70);}")
+        else:
 
-        self.imgLable = QLabel(self)
-        self.imgLable.setScaledContents(True)
-        self.imgLable.setPixmap(icon)
-        self.imgLable.setGeometry(QRect(5, 5, 64, 64))
+            print(self.fileSize)
 
-        self.progressBar = MyProgressBar(self)
-        self.progressBar.move(74, 26)
-        self.progressBar.resize(492, 21)
-        self.progressBar.setValue(0)
+            self.Paused = False
 
-        self.openFileBtn = QPushButton(self)
-        self.openFileBtn.setGeometry(QRect(441, 50, 71, 21))
-        self.openFileBtn.setProperty("round", True)
+            # setUpGUI
+            self.setStyleSheet(".QLabel {color: rgb(70, 70, 70);}")
 
-        self.fileSizeLabel = QLabel(self)
-        self.fileSizeLabel.setGeometry(QRect(201, 49, 131, 18))
+            self.imgLable = QLabel(self)
+            self.imgLable.setScaledContents(True)
+            self.imgLable.setPixmap(icon)
+            self.imgLable.setGeometry(QRect(5, 5, 64, 64))
 
-        self.fileNameLabel = QLabel(self)
-        self.fileNameLabel.setGeometry(QRect(75, 5, 389, 18))
+            self.progressBar = MyProgressBar(self)
+            self.progressBar.move(74, 26)
+            self.progressBar.resize(492, 21)
+            self.progressBar.setValue(0)
 
-        self.speedLabel = QLabel(self)
-        self.speedLabel.setGeometry(QRect(75, 49, 131, 18))
+            self.openFileBtn = QPushButton(self)
+            self.openFileBtn.setGeometry(QRect(441, 50, 71, 21))
+            self.openFileBtn.setProperty("round", True)
 
-        self.timeLabel = QLabel(self)
-        self.timeLabel.setGeometry(QRect(306, 49, 131, 18))
+            self.fileSizeLabel = QLabel(self)
+            self.fileSizeLabel.setGeometry(QRect(201, 49, 131, 18))
 
-        self.stateLabel = QLabel(self)
-        self.stateLabel.setGeometry(QRect(74, 25, 492, 21))
-        self.stateLabel.setStyleSheet("color: rgb(84, 84, 84)")
-        self.stateLabel.setAlignment(Qt.AlignCenter)
+            self.fileNameLabel = QLabel(self)
+            self.fileNameLabel.setGeometry(QRect(75, 5, 389, 18))
 
-        self.pauseBtn = QPushButton(self)
-        self.pauseBtn.setGeometry(QRect(521, 50, 21, 21))
+            self.speedLabel = QLabel(self)
+            self.speedLabel.setGeometry(QRect(75, 49, 131, 18))
 
-        self.threadNumLabel = QLabel(self)
-        self.threadNumLabel.setGeometry(QRect(464, 5, 200, 18))
+            self.timeLabel = QLabel(self)
+            self.timeLabel.setGeometry(QRect(306, 49, 131, 18))
 
-        # Icon
-        self.pauseIcon = QIcon()
-        self.pauseIcon.addFile(f"{skinName}/pause", QSize(), QIcon.Normal, QIcon.Off)
-        self.playIcon = QIcon()
-        self.playIcon.addFile(f"{skinName}/play", QSize(), QIcon.Normal, QIcon.Off)
+            self.stateLabel = QLabel(self)
+            self.stateLabel.setGeometry(QRect(74, 25, 492, 21))
+            self.stateLabel.setStyleSheet("color: rgb(84, 84, 84)")
+            self.stateLabel.setAlignment(Qt.AlignCenter)
 
-        self.pauseBtn.setIcon(self.pauseIcon)
+            self.pauseBtn = QPushButton(self)
+            self.pauseBtn.setGeometry(QRect(521, 50, 21, 21))
 
-        self.cancelBtn = QPushButton(self)
-        self.cancelBtn.setGeometry(QRect(551, 50, 21, 21))
+            self.threadNumLabel = QLabel(self)
+            self.threadNumLabel.setGeometry(QRect(464, 5, 200, 18))
 
-        # retranslateUi
-        self.openFileBtn.setText("打开目录")
-        self.stateLabel.setText("正在准备...")
-        self.cancelBtn.setText("╳")
-        self.fileNameLabel.setText(self.filename)
-        self.fileSizeLabel.setText("大小:%s" % self.__get_readable_size(self.file_size))
-        self.timeLabel.setText("剩余时间:Check...")
-        self.threadNumLabel.setText("线程数:Check...")
-        self.speedLabel.setText("速度:Check...")
-        # 连接函数
-        self.openFileBtn.clicked.connect(lambda: startfile(self.download_dir))
-        self.pauseBtn.clicked.connect(self.pause)
-        self.cancelBtn.clicked.connect(self.cancel)
-        # Start
-        threading.Thread(target=self.start, daemon=True).start()
+            # Icon
+            self.pauseIcon = QIcon()
+            self.pauseIcon.addFile(f"{skinName}/pause", QSize(), QIcon.Normal, QIcon.Off)
+            self.playIcon = QIcon()
+            self.playIcon.addFile(f"{skinName}/play", QSize(), QIcon.Normal, QIcon.Off)
+
+            self.pauseBtn.setIcon(self.pauseIcon)
+
+            self.cancelBtn = QPushButton(self)
+            self.cancelBtn.setGeometry(QRect(551, 50, 21, 21))
+
+            # retranslateUi
+            self.openFileBtn.setText("打开目录")
+            self.stateLabel.setText("正在准备...")
+            self.cancelBtn.setText("╳")
+            self.fileNameLabel.setText(self.filename)
+            self.fileSizeLabel.setText("大小:%s" % self.__get_readable_size(self.fileSize))
+            self.timeLabel.setText("剩余时间:Check...")
+            self.threadNumLabel.setText(f"线程数:{self.blocks_num}")
+            self.speedLabel.setText("速度:Check...")
+            # 连接函数
+            self.openFileBtn.clicked.connect(lambda: startfile(self.download_dir))
+            self.pauseBtn.clicked.connect(self.pause)
+            self.cancelBtn.clicked.connect(self.cancel)
+
+            # CreatingProcess
+            self.Process = DownloadEngine(url,filename,download_dir,blocks_num)
+            self.Process.start()
+            threading.Thread(target=self.Supervise,daemon=True).start()
+
+    def Supervise(self):
+        """万恶的督导：监视下载速度、进程数；提出整改意见；"""
+        REFRESH_INTERVAL = 1  # 每多久输出一次监视状态
+        LAG_COUNT = 10  # 计算过去多少次测量的平均速度
+        WAIT_TIMES_BEFORE_RESTART = 30  # 乘以时间就是等待多久执行一次 restart
+        SPEED_DEGRADATION_PERCENTAGE = int(reduceSpeed) / 100  # 速度下降百分比
+        self.__download_record = []
+        maxspeed = 0
+        percentage = 0
+        wait_times = WAIT_TIMES_BEFORE_RESTART
+        while True:
+            if percentage < 100:
+                dwn_size = sum([path.getsize(cachefile) for cachefile in self.__get_cache_filenames()])
+                self.__download_record.append({"timestamp": time.time(), "size": dwn_size})
+                if len(self.__download_record) > LAG_COUNT:
+                    self.__download_record.pop(0)
+                s = self.__download_record[-1]["size"] - self.__download_record[0]["size"]
+                t = self.__download_record[-1]["timestamp"] - self.__download_record[0]["timestamp"]
+                if not t == 0 and self.Paused == False:
+                    speed = s / t
+                    readable_speed = self.__get_readable_size(speed)  # 变成方便阅读的样式
+                    percentage = self.__download_record[-1]["size"] / self.fileSize * 100
+                    status_msg = f"\r[info] {percentage:.1f} % | {readable_speed}/s | {self.blocks_num}"
+                    sys.stdout.write(status_msg)
+                    # 更改界面
+                    self.progressBar.setValue(percentage)
+    
+                    globalSignal.change_text.emit(self.stateLabel,
+                                                  f"正在下载:{percentage:.1f}% ({self.__get_readable_size(self.__download_record[-1]['size'])})")
+                    globalSignal.change_text.emit(self.speedLabel, f"速度:{readable_speed}/s")
+                    if speed == 0:
+                        globalSignal.change_text.emit(self.timeLabel, "剩余时间:Check...")
+                    else:
+                        globalSignal.change_text.emit(self.timeLabel, f"剩余时间:%s" % timedelta(seconds=
+                            round((self.fileSize - self.__download_record[-1]['size']) / speed)))
+                    globalSignal.change_text.emit(self.threadNumLabel,
+                                                  f"线程数:{self.blocks_num}")
+                    # 监测下载速度下降
+                    maxspeed = max(maxspeed, speed)
+                    # 当满足：该监测了 + 未完成 + 速度下降百分比达到了阈值 + 速度低于 1 MB/s
+                    if wait_times < 0 and (
+                            maxspeed - speed) / maxspeed > SPEED_DEGRADATION_PERCENTAGE and speed < int(
+                        reduceSpeed_2) * 1024:
+                        sys.stdout.write("\r[info] speed degradation, restarting...          ")
+                        globalSignal.change_text.emit(self.stateLabel, "正在下载:速度过低,正在重连...")
+                        self.stop()
+                        self.again()
+                        maxspeed = 0
+                        wait_times = WAIT_TIMES_BEFORE_RESTART
+                    else:
+                        wait_times -= 1
+                time.sleep(REFRESH_INTERVAL)
+            elif percentage == 100:
+                time.sleep(0.3)
+                sewed_size = path.getsize(f"{self.download_dir}/{self.filename}")
+                sew_progress = (sewed_size / self.fileSize) * 100
+                sys.stdout.write(f"[info] sew_progress {sew_progress} %\n")
+                globalSignal.change_text.emit(self.stateLabel, f"正在合并:{sew_progress}% ({self.__get_readable_size(sewed_size)})")
+                self.progressBar.setValue(sew_progress)
+                if (self.fileSize - sewed_size) == 0:
+                    globalSignal.change_text.emit(self.stateLabel, "下载完成!")
+                    self.progressBar.setValue(sew_progress)
+                    systemTray.showMessage("Hey--下载完成了!", f"{self.filename} 已完成下载!", logoIcon)
+                    systemTray.messageClicked.connect(lambda: startfile(self.download_dir))
+                    break
+            else:
+                self.stop()
+                self.clear()
+                systemTray.showMessage("Hey--下载失败了!", f"{self.filename} 已失败下载!", logoIcon)
+                systemTray.messageClicked.connect(window.show)
+                globalSignal.change_text.emit(self.stateLabel, "下载完成!")
+
+    def __get_readable_size(self, size):
+        units = ["B", "KB", "MB", "GB", "TB", "PB"]
+        unit_index = 0
+        K = 1024.0
+        while size >= K:
+            size = size / K
+            unit_index += 1
+        return "%.2f %s" % (size, units[unit_index])
+
+    def __get_size(self):
+        try:
+            req = request.urlopen(self.url)
+            content_length = req.headers["Content-Length"]
+            req.close()
+            return int(content_length)
+        except Exception as err:
+            self.__bad_url_flag = True
+            print(f"[Error] {err}")
+            return 0
 
     def resizeEvent(self, event):
         self.w = self.width()
@@ -481,20 +388,6 @@ class DownGroupBox(QGroupBox):
         self.fileSizeLabel.move(self.w / 3 + 14, 50)
         self.timeLabel.move(self.w / 2 + 26, 50)
 
-    def __get_size(self):
-        try:
-            req = request.urlopen(self.url)
-            content_length = req.headers["Content-Length"]
-            # req = requests.head(self.url,headers=headers)
-            # print(req.headers["Content-Length"])
-            # content_length = req.headers["Content-Length"]
-            req.close()
-            return int(content_length)
-        except Exception as err:
-            self.__bad_url_flag = True
-            print(f"[Error] {err}")
-            return 0
-
     def __get_readable_size(self, size):
         units = ["B", "KB", "MB", "GB", "TB", "PB"]
         unit_index = 0
@@ -504,141 +397,8 @@ class DownGroupBox(QGroupBox):
             unit_index += 1
         return "%.2f %s" % (size, units[unit_index])
 
-    def __get_cache_filenames(self):
-        return glob(f"{self.cache_dir}{self.filename}.*.d2l")
-
-    def __get_ranges_from_cache(self):
-        # 形如 ./cache/filename.1120.d2l
-        ranges = []
-        for filename in self.__get_cache_filenames():
-            size = path.getsize(filename)
-            if size > 0:
-                cache_start = int(filename.split(".")[-2])
-                cache_end = cache_start + size - 1
-                ranges.append((cache_start, cache_end))
-        ranges.sort(key=lambda x: x[0])  # 排序
-        return ranges
-
-    def __get_AAEK_from_cache(self):
-        ranges = self.__get_ranges_from_cache()  # 缓存文件里的数据
-        AAEK = []  # 根据 ranges 和 self.file_size 生成 AAEK
-        if len(ranges) == 0:
-            AAEK.append((0, self.file_size - 1))
-        else:
-            for i, (start, end) in enumerate(ranges):
-                if i == 0:
-                    if start > 0:
-                        AAEK.append((0, start - 1))
-                next_start = self.file_size if i == len(ranges) - 1 else ranges[i + 1][0]
-                if end < next_start - 1:
-                    AAEK.append((end + 1, next_start - 1))
-        return AAEK
-
-    def __increase_ranges_slice(self, ranges: list, minimum_size=1024 * 1024):
-        """增加分块数目，小于 minimum_size 就不再分割了"""
-        assert len(ranges) > 0
-        block_size = [end - start + 1 for start, end in ranges]
-        index_of_max = block_size.index(max(block_size))
-        start, end = ranges[index_of_max]
-        halfsize = block_size[index_of_max] // 2
-        if halfsize >= minimum_size:
-            new_ranges = [x for i, x in enumerate(ranges) if i != index_of_max]
-            new_ranges.append((start, start + halfsize))
-            new_ranges.append((start + halfsize + 1, end))
-        else:
-            new_ranges = ranges
-        return new_ranges
-
-    def __ask_for_work(self, worker_num: int):
-        """申请工作，返回 [work_range]，从 self.AAEK 中扣除。没工作的话返回 []。"""
-        assert worker_num > 0
-        task = []
-        aaek_num = len(self.AAEK)
-        if aaek_num == 0:  # 没任务了
-            # TODO 这里挑 size 大的 DLWorker 调用 help
-            self.__share_the_burdern()
-            return []
-        if aaek_num >= worker_num:  # 数量充足，直接拿就行了
-            for _ in range(worker_num):
-                task.append(self.AAEK.pop(0))
-        else:  # 数量不足，需要切割
-            slice_num = worker_num - aaek_num  # 需要分割几次
-            task = self.AAEK  # 这个时候 task 就不可能是 [] 了
-            self.AAEK = []
-            for _ in range(slice_num):
-                task = self.__increase_ranges_slice(task)
-        task.sort(key=lambda x: x[0])
-        return task
-
-    def __share_the_burdern(self, minimum_size=1024 * 1024):
-        """找出工作最繁重的 worker，调用他的 help。回调函数中会将他的任务一分为二。"""
-        max_size = 0
-        max_size_name = ""
-        for w in self.workers:
-            p = w.get_progress()
-            size = p["end"] - p["curser"] + 1
-            if size > max_size:
-                max_size = size
-                max_size_name = w.name
-        if max_size >= minimum_size:
-            for w in self.workers:
-                if w.name == max_size_name:
-                    w.help()
-                    break
-
-    def __give_back_work(self, worker: DLWorker):
-        """接纳没干完的工作。需要按 size 从小到大排序。"""
-        progress = worker.get_progress()
-        curser = progress["curser"]
-        end = progress["end"]
-        if curser <= end:  # 校验一下是否是合理值
-            self.AAEK.append((curser, end))
-            self.AAEK.sort(key=lambda x: x[0])
-
-    def __give_me_a_worker(self, start, end):
-        worker = DLWorker(name=f"{self.filename}.{start}",
-                          url=self.url, range_start=start, range_end=end, cache_dir=self.cache_dir,
-                          finish_callback=self.__on_dlworker_finish)
-        return worker
-
-    def __whip(self, worker: DLWorker):
-        """鞭笞新来的 worker，让他去工作"""
-        self.workers.append(worker)
-        self.workers.sort()
-        worker.start()
-
-    def __on_dlworker_finish(self, worker: DLWorker):
-        assert worker.FINISH_TYPE != ""
-        self.workers.remove(worker)
-        if worker.FINISH_TYPE == "HELP":  # 外包
-            self.__give_back_work(worker)
-            self.workaholic(2)
-        elif worker.FINISH_TYPE == "DONE":  # 完工
-            # 再打一份工，也可能打不到
-            self.workaholic(1)
-        elif worker.FINISH_TYPE == "RETIRE":  # 撂挑子
-            # 把工作添加回 AAEK，离职不管了。
-            self.__give_back_work(worker)
-        # 下载齐全，开始组装
-        if self.workers == [] and self.__get_AAEK_from_cache() == []:
-            self.__sew()
-
-    def start(self):
-        # TODO 尝试整理缓存文件夹内的相关文件
-        if not self.__bad_url_flag:
-            # 召集 worker
-            for start, end in self.__ask_for_work(self.blocks_num):
-                worker = self.__give_me_a_worker(start, end)
-                self.__whip(worker)
-            # 卡住主进程
-            self.__main_thread_done.wait()
-
     def stop(self):
-        """再次召集 worker。不调用 start 的原因是希望他继续卡住主线程。"""
-        for w in self.workers:
-            w.retire()
-        while len(self.workers) != 0:
-            time.sleep(0.5)
+        self.Process.kill()
 
     def pause(self):
         """接受Pause按钮发出的暂停信号并进行操作"""
@@ -670,22 +430,9 @@ class DownGroupBox(QGroupBox):
 
             self.Paused = False
 
-    def workaholic(self, n=1):
-        """九九六工作狂。如果能申请到，就地解析；申请不到，__give_me_a_worker 会尝试将一个 worker 的工作一分为二；"""
-        for s, e in self.__ask_for_work(n):
-            worker = self.__give_me_a_worker(s, e)
-            self.__whip(worker)
-
     def again(self):
-        """再次召集 worker。不调用 start 的原因是希望他继续卡住主线程。"""
-        for start, end in self.__ask_for_work(self.blocks_num):
-            worker = self.__give_me_a_worker(start, end)
-            self.__whip(worker)
-
-    def restart(self):
-        self.stop()
-        # 再次召集 worker。不调用 start 的原因是希望他继续卡住主线程。
-        self.again()
+        self.Process = DownloadEngine(self.url, self.filename, self.download_dir, self.blocks_num)
+        self.Process.start()
 
     def cancel(self):
         self.pauseBtn.setEnabled(False)
@@ -693,11 +440,7 @@ class DownGroupBox(QGroupBox):
         globalSignal.change_text.emit(self.stateLabel, "正在取消任务:正在暂停线程...")
         self.Paused = True
         self.stop()
-        globalSignal.change_text.emit(self.stateLabel, "正在取消任务:正在清理内存...")
-        self.__done.set()
         globalSignal.change_text.emit(self.stateLabel, "正在取消任务:正在清理缓存...")
-        self.clear()
-        self.__main_thread_done.set()
         moveAction(self, self.w + 35, self.y(), True)
         if len(DownGroupBoxesList) == 1:
             del DownGroupBoxesList[0]
@@ -706,108 +449,7 @@ class DownGroupBox(QGroupBox):
             del DownGroupBoxesList[ID]
             for i in range(len(DownGroupBoxesList)):
                 moveAction(DownGroupBoxesList[i], DownGroupBoxesList[i].x(), i * 78 + 5)
-
-    def __supervise(self):
-        """万恶的督导：监视下载速度、进程数；提出整改意见；"""
-        REFRESH_INTERVAL = 1  # 每多久输出一次监视状态
-        LAG_COUNT = 10  # 计算过去多少次测量的平均速度
-        WAIT_TIMES_BEFORE_RESTART = 30  # 乘以时间就是等待多久执行一次 restart
-        SPEED_DEGRADATION_PERCENTAGE = int(reduceSpeed) / 100  # 速度下降百分比
-        self.__download_record = []
-        maxspeed = 0
-        wait_times = WAIT_TIMES_BEFORE_RESTART
-        while not self.__done.is_set():
-            dwn_size = sum([path.getsize(cachefile) for cachefile in self.__get_cache_filenames()])
-            self.__download_record.append({"timestamp": time.time(), "size": dwn_size})
-            if len(self.__download_record) > LAG_COUNT:
-                self.__download_record.pop(0)
-            s = self.__download_record[-1]["size"] - self.__download_record[0]["size"]
-            t = self.__download_record[-1]["timestamp"] - self.__download_record[0]["timestamp"]
-            if not t == 0 and self.Paused == False:
-                speed = s / t
-                readable_speed = self.__get_readable_size(speed)  # 变成方便阅读的样式
-                percentage = self.__download_record[-1]["size"] / self.file_size * 100
-                status_msg = f"\r[info] {percentage:.1f} % | {readable_speed}/s | {len(self.workers)}+{threading.active_count() - len(self.workers)} {(time.time() - self.startdlsince):.0f}s          "
-                sys.stdout.write(status_msg)
-                # 更改界面
-                self.progressBar.setValue(percentage)
-
-                globalSignal.change_text.emit(self.stateLabel,
-                                              f"正在下载:{percentage:.1f}% ({self.__get_readable_size(self.__download_record[-1]['size'])})")
-                globalSignal.change_text.emit(self.speedLabel, f"速度:{readable_speed}/s")
-                if speed == 0:
-                    globalSignal.change_text.emit(self.timeLabel, "剩余时间:Check...")
-                else:
-                    globalSignal.change_text.emit(self.timeLabel, f"剩余时间:%s" % self.__get_readable_time(
-                        round((self.file_size - self.__download_record[-1]['size']) / speed)))
-                globalSignal.change_text.emit(self.threadNumLabel,
-                                              f"线程数:{len(self.workers)}+{threading.active_count() - len(self.workers)}")
-                # 监测下载速度下降
-                maxspeed = max(maxspeed, speed)
-                # 当满足：该监测了 + 未完成 + 速度下降百分比达到了阈值 + 速度低于 1 MB/s
-                if wait_times < 0 and not self.__done.is_set() and (
-                        maxspeed - speed) / maxspeed > SPEED_DEGRADATION_PERCENTAGE and speed < int(
-                    reduceSpeed_2) * 1024:
-                    sys.stdout.write("\r[info] speed degradation, restarting...          ")
-                    globalSignal.change_text.emit(self.stateLabel, "正在下载:速度过低,正在重连...")
-                    self.restart()
-                    maxspeed = 0
-                    wait_times = WAIT_TIMES_BEFORE_RESTART
-                else:
-                    wait_times -= 1
-            time.sleep(REFRESH_INTERVAL)
-
-    def show_sew_progress(self):
-        while True:
-            time.sleep(0.3)
-            sewed_size = path.getsize(f"{self.download_dir}/{self.filename}")
-            sew_progress = (sewed_size / self.file_size) * 100
-            sys.stdout.write(f"[info] sew_progress {sew_progress} %\n")
-            globalSignal.change_text.emit(self.stateLabel,
-                                          f"正在合并:{sew_progress}% ({self.__get_readable_size(sewed_size)})")
-            self.progressBar.setValue(sew_progress)
-
-            if (self.file_size - sewed_size) == 0:
-                globalSignal.change_text.emit(self.stateLabel, "下载完成!")
-                self.progressBar.setValue(sew_progress)
-                QSound(f"{skinName}/download-complete.wav").play()
-                systemTray.showMessage("Hey--下载完成了!", f"{self.filename} 已完成下载!", logoIcon)
-                systemTray.messageClicked.connect(lambda: startfile(self.download_dir))
-                break
-
-    def __sew(self):
-        self.__done.set()
-        chunk_size = 10 * 1024 * 1024
-
-        threading.Thread(target=self.show_sew_progress, daemon=True).start()
-
-        with open(f"{self.download_dir}/{self.filename}", "wb") as f:
-            for start, _ in self.__get_ranges_from_cache():
-                cache_filename = f"{self.cache_dir}{self.filename}.{start}.d2l"
-                with open(cache_filename, "rb") as cache_file:
-                    data = cache_file.read(chunk_size)
-                    while data:
-                        f.write(data)
-                        f.flush()
-                        data = cache_file.read(chunk_size)
         self.clear()
-        # sys.stdout.write(f"\n[md5] {self.md5()}\n[info] D2wnloaded\n")
-        self.__main_thread_done.set()
-
-    def __get_readable_time(self, seconds: int):
-        m, s = divmod(seconds, 60)
-        return "{:02d}m:{:02d}s".format(m, s)
-
-    # def md5(self):
-    #     chunk_size = 1024 * 1024
-    #     filename = f"{path.join(self.download_dir, self.filename)}"
-    #     md5 = hashlib.md5()
-    #     with open(filename, "rb") as f:
-    #         data = f.read(chunk_size)
-    #         while data:
-    #             md5.update(data)
-    #             data = f.read(chunk_size)
-    #     return md5.hexdigest()
 
     def clear(self, all_cache=False):
         # 清除历史
@@ -822,11 +464,21 @@ class DownGroupBox(QGroupBox):
             f.write(tmp)
             f.close()
 
-        if all_cache:  # TODO 需要交互提醒即将删除的文件夹 [Y]/N 确认。由于不安全，先不打算实现。
-            pass
-        else:
-            for filename in self.__get_cache_filenames():
-                remove(filename)
+        delSuccess = False
+        while not delSuccess:
+            try:
+                if all_cache:  # TODO 需要交互提醒即将删除的文件夹 [Y]/N 确认。由于不安全，先不打算实现。
+                    pass
+                else:
+                    for filename in self.__get_cache_filenames():
+                        remove(filename)
+                    delSuccess = True
+            except PermissionError:
+                print("删除失败,正在重试!")
+                delSuccess = False
+
+    def __get_cache_filenames(self):
+        return glob(f"{self.cache_dir}{self.filename}.*.gd2")
 
 class MyMessageBox(AcrylicWindow):
     def __init__(self,title:str,content:str,icon:QPixmap,parent=None):
@@ -891,22 +543,36 @@ class NewNetTaskWindow(AcrylicDialog):
         self.setUp()
         # 自定义功能区
         WPSsupport = compile(u"\^\^\^\^\^",IGNORECASE).search(downurl)
-        print(WPSsupport)
-        if not WPSsupport:
-            self.WPSRadioBtn.setDisabled(True)
-            self.ODurl = downurl
-            self.ODname = filename
-            self.ODRadioBtn.setChecked(True)  # 默认Onedrive
-        else:
-            self.ODurl = findall(u"([\S\s]*)\^\^\^\^\^",downurl)[0]
-            self.WPSurl = findall(u"\^\^\^\^\^([\S\s]*)",downurl)[0]
+        WPSSupport_2 = compile(u"\^\^\^\^\^\$\$\$\$\$",IGNORECASE).search(downurl)
+        CSTsupport = compile(u"\$\$\$\$\$",IGNORECASE).search(downurl)
+        print(WPSSupport_2)
+
+        print("OD支持")
+        self.WPSRadioBtn.setDisabled(True)
+        self.CSTRadioBtn.setDisabled(True)
+        self.ODurl = downurl
+        self.ODname = filename
+        self.ODRadioBtn.setChecked(True)  # 默认Onedrive
+
+        if CSTsupport:
+            print("CST支持")
+            self.CSTRadioBtn.setDisabled(False)
+            self.ODurl = findall(u"([\S\s]*)\^\^\^\^\^", downurl)[0]
+            self.CSTurl = findall(u"\$\$\$\$\$([\S\s]*)",downurl)[0]
+            self.ODname = findall(u"([\S\s]*)\^\^\^\^\^", filename)[0]
+            self.CSTname = findall(u"\$\$\$\$\$([\S\s]*)", filename)[0]
+        if WPSsupport and not WPSSupport_2:
+            print("WPS支持")
+            self.WPSRadioBtn.setDisabled(False)
+            self.WPSurl = findall(u"\^\^\^\^\^([\S\s]*)\$\$\$\$\$",downurl)[0]
             self.WPSurl = findall(u",?([\S\s]*?),",self.WPSurl)
-            print(self.WPSurl,self.ODurl)
-            self.ODname = findall(u"([\S\s]*)\^\^\^\^\^",filename)[0]
-            self.WPSname = findall(u"\^\^\^\^\^([\S\s]*)",filename)[0]
+            print(self.WPSurl)
+            self.WPSname = findall(u"\^\^\^\^\^([\S\s]*)\$\$\$\$\$",filename)[0]
             self.WPSname = findall(u",?([\S\s]*?),",self.WPSname)
-            print(self.WPSname,self.ODname)
+            print(self.WPSname)
             self.WPSRadioBtn.setChecked(True)  # 默认WPS
+
+
         # 连接函数
         self.threadNumC.currentIndexChanged.connect(self.changeThreadNum)
         self.decidePathBtn.clicked.connect(lambda: decidePathWin(self, self.decidePathEdit, False))
@@ -952,8 +618,8 @@ class NewNetTaskWindow(AcrylicDialog):
 
     def setUp(self):
         self.setObjectName(u"NewNetTaskWindow")
-        self.resize(450, 245)
-        self.setMinimumSize(QSize(450, 245))
+        self.resize(500, 250)
+        self.setMinimumSize(QSize(500, 250))
         self.verticalLayout = QVBoxLayout(self)
         self.verticalLayout.setObjectName(u"verticalLayout")
         self.verticalLayout.setContentsMargins(10, 26, 10, 10)
@@ -1023,8 +689,16 @@ class NewNetTaskWindow(AcrylicDialog):
 
         self.horizontalLayout_3.addWidget(self.ODRadioBtn)
 
+        self.CSTRadioBtn = QRadioButton(self.decideSourceG)
+        self.CSTRadioBtn.setObjectName(u"CSTRadioBtn")
+        sizePolicy2.setHeightForWidth(self.CSTRadioBtn.sizePolicy().hasHeightForWidth())
+        self.CSTRadioBtn.setSizePolicy(sizePolicy2)
+
+        self.horizontalLayout_3.addWidget(self.CSTRadioBtn)
+
         self.ODRadioBtn.raise_()
         self.WPSRadioBtn.raise_()
+        self.CSTRadioBtn.raise_()
 
         self.verticalLayout.addWidget(self.decideSourceG)
 
@@ -1049,8 +723,9 @@ class NewNetTaskWindow(AcrylicDialog):
         self.decidePathEdit.setText(defaultPath)
         self.decidePathBtn.setText(u"\u9009\u62e9\u8def\u5f84")
         self.decideSourceG.setTitle(u"\u9009\u62e9\u60a8\u7684\u4e0b\u8f7d\u6e90!")
-        self.WPSRadioBtn.setText(u"WPS\u4e91\u76d8(\u79fb\u52a8\u3001\u7535\u4fe1)")
-        self.ODRadioBtn.setText(u"Onedrive(\u8054\u901a\u3001\u7535\u4fe1)")
+        self.WPSRadioBtn.setText(u"金山云(移动电信)")
+        self.ODRadioBtn.setText(u"微软云(联通电信)")
+        self.CSTRadioBtn.setText(u"科技网(三网优化)")
         self.startBtn.setText(u"\u5f00\u59cb\u4e0b\u8f7d")
 
     def getWPSDownloadLink(self):
@@ -1073,10 +748,11 @@ class NewNetTaskWindow(AcrylicDialog):
             DownloadLink = self.getWPSDownloadLink()
             for i in range(len(DownloadLink)):
                 newDownloadTask(self.icon,DownloadLink[i],self.WPSname[i],self.decidePathEdit.text(),self.threadNum,window)
-                self.close()
         elif self.ODRadioBtn.isChecked() == True: # OD
             newDownloadTask(self.icon,self.ODurl,self.ODname,self.decidePathEdit.text(),self.threadNum,window)
-            self.close()
+        elif self.CSTRadioBtn.isChecked() == True: # CST
+            newDownloadTask(self.icon, self.CSTurl, self.CSTname, self.decidePathEdit.text(), self.threadNum, window)
+        self.close()
 
 class NewTaskWindow(AcrylicWindow):
     def __init__(self, parent=None):
@@ -1525,7 +1201,7 @@ class SettingsWindow(AcrylicWindow):
         self.GUIG.setTitle("界面设置")
         self.label_4.setText("在这里选择你想要的界面样式")
         self.getUpBtn.setText("\u68c0\u67e5\u66f4\u65b0")
-        self.nowVerLable.setText("当前版本:2.0-beta.1,已是最新!")
+        self.nowVerLable.setText("当前版本:2.0.0Release,已是最新!")
         self.jiaQunBtn.setText(
             "\u70b9\u51fb\u52a0\u5165\u7fa4\u804a: \u6770\u514b\u59da\u306e\u5c0f\u5c4b \u4ee5\u83b7\u53d6\u652f\u6301")
         self.shengMingBtn.setText("\u4f7f\u7528\u58f0\u660e")
@@ -2110,7 +1786,7 @@ class Window(AcrylicWindow):
         self.listBtn.setText("推荐资源")
         self.downBtn.setText("任务列表")
         self.toolsBtn.setText("实用工具")
-        self.verLable.setText("2.0-beta.1")
+        self.verLable.setText("2.0.0Release")
 
         self.listNotLoaded = False
         # 加载GIF
@@ -2125,7 +1801,7 @@ class Window(AcrylicWindow):
 
         def getWebsiteContent():
             try:
-                content = requests.get("https://128.14.239.141/config.txt", headers, verify=False)
+                content = requests.get("https://obs.cstcloud.cn/share/obs/xiaoyouchr/config.json", headers, verify=False)
                 content.encoding = "utf-8"
                 content = content.text
                 self.load_list.emit(content)
@@ -2306,15 +1982,135 @@ class Window(AcrylicWindow):
             e.ignore()
 
 if __name__ == '__main__':
-    # 初始化设置窗口
-    settingsWindow = SettingsWindow()
+    freeze_support()
+    # 忽略 https 警告
+    ssl._create_default_https_context = ssl._create_unverified_context
+    requests.packages.urllib3.disable_warnings()
 
-    window = Window()
-    window.show()
+    # 创建application
+    QApplication.setAttribute(Qt.AA_EnableHighDpiScaling)
+    app = QApplication(sys.argv)
+
+    # 检测程序是否重复运行
+    lockFile = QLockFile("./lock.lck")
+    if not lockFile.tryLock(2000):
+        msg_box = QMessageBox()
+        msg_box.setWindowTitle("提示")
+        msg_box.setText("GhostDownloader2已在运行!")
+        msg_box.setIcon(QMessageBox.Information)
+        msg_box.addButton("确定", QMessageBox.YesRole)
+        msg_box.exec()
+        sys.exit(-1)
+
+    # 创建/读取 配置文件
+    if path.exists("config.cfg") == True:
+        try:
+            with open("config.cfg", "r") as f:
+                _ = []  # 生成空表格
+
+                for line in f.readlines():
+                    line = line.strip('\n')  # 去掉列表中每一个元素的换行符
+                    _.append(line)
+
+                threadNum = int(_[0])
+                print(threadNum)
+                defaultPath = _[1]
+                print(defaultPath)
+                skinName = _[2]
+                print(skinName)
+                reduceSpeed = int(_[3])
+                print(reduceSpeed)
+                reduceSpeed_2 = int(_[4])
+                print(reduceSpeed_2)
+                GUI = int(_[5])
+                print(GUI)
+                f.close()
+        except:
+            f.close()
+            with open("config.cfg", "w") as f:
+                f.write("32\n%s\nskins/Default\n50\n200\n1" % getcwd().replace("\\", "/"))
+                f.close()
+            with open("config.cfg", "r") as f:
+                _ = []  # 生成空表格
+
+                for line in f.readlines():
+                    line = line.strip('\n')  # 去掉列表中每一个元素的换行符
+                    _.append(line)
+
+                threadNum = int(_[0])
+                print(threadNum)
+                defaultPath = _[1]
+                print(defaultPath)
+                skinName = _[2]
+                print(skinName)
+                reduceSpeed = _[3]
+                print(reduceSpeed)
+                reduceSpeed_2 = _[4]
+                print(reduceSpeed_2)
+                GUI = int(_[5])
+                print(GUI)
+                f.close()
+    else:
+        with open("config.cfg", "w") as f:
+            f.write("32\n%s\nskins/Default\n50\n200\n1" % getcwd().replace("\\", "/"))
+            f.close()
+        with open("config.cfg", "r") as f:
+            _ = []  # 生成空表格
+
+            for line in f.readlines():
+                line = line.strip('\n')  # 去掉列表中每一个元素的换行符
+                _.append(line)
+
+            threadNum = int(_[0])
+            print(threadNum)
+            defaultPath = _[1]
+            print(defaultPath)
+            skinName = _[2]
+            print(skinName)
+            reduceSpeed = _[3]
+            print(reduceSpeed)
+            reduceSpeed_2 = _[4]
+            print(reduceSpeed_2)
+            GUI = int(_[5])
+            print(GUI)
+            f.close()
+
+    logoIcon = QIcon()
+    logoIcon.addFile(f"{skinName}/logo.png", QSize(), QIcon.Normal, QIcon.Off)
+    app.setWindowIcon(logoIcon)
+
+    Version = 200
+    headers = {
+        "user-agent": "Mozilla/5.0 (Windows NT 6.3; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/93.0.4577.63 Safari/537.36 Edg/93.0.961.44"
+    }
+    listGroupBoxesList = []
+    DownGroupBoxesList = []
+    urlRe = compile(r"^" +
+                    "((?:https?|ftp)://)" +
+                    "(?:\\S+(?::\\S*)?@)?" +
+                    "(?:" +
+                    "(?:[1-9]\\d?|1\\d\\d|2[01]\\d|22[0-3])" +
+                    "(?:\\.(?:1?\\d{1,2}|2[0-4]\\d|25[0-5])){2}" +
+                    "(\\.(?:[1-9]\\d?|1\\d\\d|2[0-4]\\d|25[0-4]))" +
+                    "|" +
+                    "((?:[a-z\\u00a1-\\uffff0-9]-*)*[a-z\\u00a1-\\uffff0-9]+)" +
+                    '(?:\\.(?:[a-z\\u00a1-\\uffff0-9]-*)*[a-z\\u00a1-\\uffff0-9]+)*' +
+                    "(\\.([a-z\\u00a1-\\uffff]{2,}))" +
+                    ")" +
+                    "(?::\\d{2,5})?" +
+                    "(?:/\\S*)?" +
+                    "$", IGNORECASE)
+
     # 托盘
     systemTray = QSystemTrayIcon()  # 创建托盘
     systemTray.setIcon(logoIcon)  # 设置托盘图标
     systemTray.setToolTip(u'Ghost Downloader 2')
     systemTray.show()
+
+    # 初始化设置窗口
+    settingsWindow = SettingsWindow()
+
+    window = Window()
+    window.show()
 
     sys.exit(app.exec_())
