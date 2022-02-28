@@ -2,6 +2,7 @@ import ssl
 import sys
 import threading
 import time
+import winreg
 from datetime import timedelta
 from glob import glob
 from multiprocessing import freeze_support
@@ -26,14 +27,18 @@ from titlebar import MainWindowTitleBar
 def Move(object, x, y):
     object.move(x, y)
 
+
 def SetText(object, text: str):
     object.setText(text)
+
 
 def Resize(object, width: int, height: int):
     object.resize(width, height)
 
-def MessageBox(title: str, content: str, icon: QPixmap):
-    MyMessageBox(title, content, icon)
+
+def MessageBox(icon: QPixmap, title: str, content: str):
+    MyMessageBox(icon, title, content)
+
 
 # 全局信号类
 class GlobalSignal(QObject):
@@ -41,7 +46,8 @@ class GlobalSignal(QObject):
     move_object = Signal(QWidget, int, int)
     change_text = Signal(QLabel, str)
     resize_object = Signal(QWidget, int, int)
-    message_box = Signal(str, str, QPixmap)
+    message_box = Signal(QPixmap, str, str)
+
 
 # 实例化信号类并Connect
 globalSignal = GlobalSignal()
@@ -49,6 +55,7 @@ globalSignal.move_object.connect(Move)
 globalSignal.change_text.connect(SetText)
 globalSignal.resize_object.connect(Resize)
 globalSignal.message_box.connect(MessageBox)
+
 
 # 全局函数
 def countActionValues(start: int, end: int):
@@ -59,6 +66,7 @@ def countActionValues(start: int, end: int):
                         0.94, 0.96, 0.98, 1]
     actionValuesList = [i * temp + start for i in actionValuesList]
     return actionValuesList
+
 
 def resizeAction(object, width: int, height: int):
     def action():
@@ -90,7 +98,8 @@ def resizeAction(object, width: int, height: int):
 
     threading.Thread(target=action, daemon=True).start()
 
-def moveAction(object, x: int, y: int, close = False):
+
+def moveAction(object, x: int, y: int, close=False):
     def action():
 
         objX = object.x()
@@ -126,11 +135,13 @@ def moveAction(object, x: int, y: int, close = False):
 
     threading.Thread(target=action, daemon=True).start()
 
+
 def changeConfig():
-    with open("config.cfg", "w") as f:
+    with open("config.cfg", "w", encoding="utf-8") as f:
         f.write(f"{threadNum}\n{defaultPath}\n{skinName}\n{reduceSpeed}\n{reduceSpeed_2}\n{GUI}")
         print(f"{threadNum}\n{defaultPath}\n{skinName}\n{reduceSpeed}\n{reduceSpeed_2}\n{GUI}")
         f.close()
+
 
 def decidePathWin(parent, texiEdit, default=False):
     global defaultPath
@@ -143,28 +154,30 @@ def decidePathWin(parent, texiEdit, default=False):
             texiEdit.setText(defaultPath)
             changeConfig()
 
-def newDownloadTask(iconPath: str, url: str, filename: str, download_dir: str, blocks_num: int, parent=None, autoStarted=False):
+
+def newDownloadTask(iconPath: str, url: str, filename: str, download_dir: str, blocks_num: int, parent=None,
+                    autoStarted=False):
     global DownGroupBoxesList
 
     if not autoStarted:
         if path.exists("history.hst") == True:
-            with open("history.hst", "r") as f:
+            with open("history.hst", "r", encoding="utf-8") as f:
                 tmp = f.read()
                 f.close()
 
                 tmp = findall(f"<hst><filename>{filename}</filename><downdir>{download_dir}</downdir>", tmp)
                 print(tmp)
                 if tmp:
-                    globalSignal.message_box.emit("你这是故意找茬啊", "有把同一个文件下载到同一个文件夹的人吗？", parent.logoImg)
+                    globalSignal.message_box.emit(parent.logoImg, "你这是故意找茬啊", "有把同一个文件下载到同一个文件夹的人吗？")
                     return  # 结束
                 elif not tmp:
-                    with open("history.hst", "a") as t:
+                    with open("history.hst", "a", encoding="utf-8") as t:
                         t.write(f"<hst><filename>{filename}</filename><downdir>{download_dir}</downdir>"
                                 f"<downurl>{url}</downurl><threadnum>{blocks_num}</threadnum><icon>{iconPath}</icon></hst>")
                         t.close()
 
         else:
-            with open("history.hst", "w") as f:
+            with open("history.hst", "w", encoding="utf-8") as f:
                 f.write(f"<hst><filename>{filename}</filename><downdir>{download_dir}</downdir>"
                         f"<downurl>{url}</downurl><threadnum>{blocks_num}</threadnum><icon>{iconPath}</icon></hst>")
                 f.close()
@@ -184,7 +197,43 @@ def newDownloadTask(iconPath: str, url: str, filename: str, download_dir: str, b
 
     parent.downWidget.resize(parent.downWidget.width(), (ID + 1) * 78 + 5)
 
+
 # 类
+class CheckProxyServer:
+
+    def __init__(self):
+        self.__path = r'Software\Microsoft\Windows\CurrentVersion\Internet Settings'
+        self.__INTERNET_SETTINGS = winreg.OpenKeyEx(winreg.HKEY_CURRENT_USER,
+                                                    self.__path, 0, winreg.KEY_ALL_ACCESS)
+
+    def get_server_form_Win(self):
+        """获取代理配置的ip和端口号"""
+        ip, port = "", ""
+        if self.is_open_proxy_form_Win():
+            try:
+                ip, port = winreg.QueryValueEx(self.__INTERNET_SETTINGS, "ProxyServer")[0].split(":")
+                print("获取到代理信息：{}:{}".format(ip, port))
+            except FileNotFoundError as err:
+                print("没有找到代理信息：" + str(err))
+            except Exception as err:
+                print("有其他报错：" + str(err))
+            return f"{ip}:{port}"
+        else:
+            print("系统没有开启代理")
+            return False
+
+    def is_open_proxy_form_Win(self):
+        """判断是否开启了代理"""
+        try:
+            if winreg.QueryValueEx(self.__INTERNET_SETTINGS, "ProxyEnable")[0] == 1:
+                return True
+        except FileNotFoundError as err:
+            print("没有找到代理信息：" + str(err))
+        except Exception as err:
+            print("有其他报错：" + str(err))
+        return False
+
+
 class DownGroupBox(QGroupBox):
     def __init__(self, icon: QPixmap, url: str, filename: str, download_dir: str, blocks_num: int, parent=None):
         super().__init__(parent=parent.downWidget)
@@ -277,9 +326,9 @@ class DownGroupBox(QGroupBox):
             self.cancelBtn.clicked.connect(self.cancel)
 
             # CreatingProcess
-            self.Process = DownloadEngine(url,filename,download_dir,blocks_num)
+            self.Process = DownloadEngine(url, filename, download_dir, blocks_num, proxies)
             self.Process.start()
-            threading.Thread(target=self.Supervise,daemon=True).start()
+            threading.Thread(target=self.Supervise, daemon=True).start()
 
     def Supervise(self):
         """万恶的督导：监视下载速度、进程数；提出整改意见；"""
@@ -307,7 +356,7 @@ class DownGroupBox(QGroupBox):
                     sys.stdout.write(status_msg)
                     # 更改界面
                     self.progressBar.setValue(percentage)
-    
+
                     globalSignal.change_text.emit(self.stateLabel,
                                                   f"正在下载:{percentage:.1f}% ({self.__get_readable_size(self.__download_record[-1]['size'])})")
                     globalSignal.change_text.emit(self.speedLabel, f"速度:{readable_speed}/s")
@@ -315,7 +364,10 @@ class DownGroupBox(QGroupBox):
                         globalSignal.change_text.emit(self.timeLabel, "剩余时间:Check...")
                     else:
                         globalSignal.change_text.emit(self.timeLabel, f"剩余时间:%s" % timedelta(seconds=
-                            round((self.fileSize - self.__download_record[-1]['size']) / speed)))
+                                                                                             round((self.fileSize -
+                                                                                                    self.__download_record[
+                                                                                                        -1][
+                                                                                                        'size']) / speed)))
                     globalSignal.change_text.emit(self.threadNumLabel,
                                                   f"线程数:{self.blocks_num}")
                     # 监测下载速度下降
@@ -338,7 +390,8 @@ class DownGroupBox(QGroupBox):
                 sewed_size = path.getsize(f"{self.download_dir}/{self.filename}")
                 sew_progress = (sewed_size / self.fileSize) * 100
                 sys.stdout.write(f"[info] sew_progress {sew_progress} %\n")
-                globalSignal.change_text.emit(self.stateLabel, f"正在合并:{sew_progress}% ({self.__get_readable_size(sewed_size)})")
+                globalSignal.change_text.emit(self.stateLabel,
+                                              f"正在合并:{sew_progress}% ({self.__get_readable_size(sewed_size)})")
                 self.progressBar.setValue(sew_progress)
                 if (self.fileSize - sewed_size) == 0:
                     globalSignal.change_text.emit(self.stateLabel, "下载完成!")
@@ -453,14 +506,14 @@ class DownGroupBox(QGroupBox):
 
     def clear(self, all_cache=False):
         # 清除历史
-        with open("history.hst", "r") as f:
+        with open("history.hst", "r", encoding="utf-8") as f:
             tmp = f.read()
             f.close()
             tmp = sub(f"<hst><filename>{self.filename}</filename><downdir>{self.download_dir}</downdir>", "Deleted",
                       tmp)
             print(tmp)
 
-        with open("history.hst", "w") as f:
+        with open("history.hst", "w", encoding="utf-8") as f:
             f.write(tmp)
             f.close()
 
@@ -480,46 +533,6 @@ class DownGroupBox(QGroupBox):
     def __get_cache_filenames(self):
         return glob(f"{self.cache_dir}{self.filename}.*.gd2")
 
-class MyMessageBox(AcrylicWindow):
-    def __init__(self,title:str,content:str,icon:QPixmap,parent=None):
-        super().__init__(parent=parent,skinName=skinName)
-        self.setObjectName("MyMessageBox")
-        self.setFixedSize(400,300)
-        # QSS
-        with open(f"{skinName}/GlobalQSS.qss", "r") as f:
-            _ = f.read()
-            self.setStyleSheet(_)
-            f.close()
-
-        self.icon = QLabel(self)
-        self.icon.setObjectName(u"icon")
-        self.icon.setGeometry(QRect(10, 250, 41, 41))
-        self.icon.setScaledContents(True)
-        self.icon.setPixmap(icon)
-
-        self.textEdit = QTextEdit(self)
-        self.textEdit.setObjectName(u"textEdit")
-        self.textEdit.setGeometry(QRect(10, 30, 381, 211))
-        self.textEdit.setReadOnly(True)
-
-        self.ok = QPushButton(self)
-        self.ok.setObjectName(u"ok")
-        self.ok.setGeometry(QRect(310, 260, 75, 23))
-        self.ok.setProperty("round", True)
-
-        # retranslateUi
-        self.setWindowTitle(title)
-        self.textEdit.setText(content)
-        self.ok.setText("我知道了")
-        self.ok.clicked.connect(self.close)
-
-        self.show()
-        self.exec_()
-
-    def keyPressEvent(self, event):
-        super().keyPressEvent(event)
-        if event.key() == Qt.Key_Escape:
-             self.close()   #关闭程序
 
 class NewNetTaskWindow(AcrylicDialog):
     def __init__(self, icon, downurl, filename, parent=None):
@@ -529,11 +542,11 @@ class NewNetTaskWindow(AcrylicDialog):
 
         self.threadNum = threadNum
         # QSS
-        with open(f"{skinName}/GlobalQSS.qss", "r") as f:
+        with open(f"{skinName}/GlobalQSS.qss", "r", encoding="utf-8") as f:
             GlobalQSS = f.read()
             # self.setStyleSheet(_)
             f.close()
-        with open(f"{skinName}/MainQSS.qss", "r") as f:
+        with open(f"{skinName}/MainQSS.qss", "r", encoding="utf-8") as f:
             MainQSS = f.read()
             # self.setStyleSheet(_)
             f.close()
@@ -542,9 +555,9 @@ class NewNetTaskWindow(AcrylicDialog):
         print(f"{icon}\n{downurl}\n{filename}")
         self.setUp()
         # 自定义功能区
-        WPSsupport = compile(u"\^\^\^\^\^",IGNORECASE).search(downurl)
-        WPSSupport_2 = compile(u"\^\^\^\^\^\$\$\$\$\$",IGNORECASE).search(downurl)
-        CSTsupport = compile(u"\$\$\$\$\$",IGNORECASE).search(downurl)
+        WPSsupport = compile(u"\^\^\^\^\^", IGNORECASE).search(downurl)
+        WPSSupport_2 = compile(u"\^\^\^\^\^\$\$\$\$\$", IGNORECASE).search(downurl)
+        CSTsupport = compile(u"\$\$\$\$\$", IGNORECASE).search(downurl)
         print(WPSSupport_2)
 
         print("OD支持")
@@ -558,20 +571,19 @@ class NewNetTaskWindow(AcrylicDialog):
             print("CST支持")
             self.CSTRadioBtn.setDisabled(False)
             self.ODurl = findall(u"([\S\s]*)\^\^\^\^\^", downurl)[0]
-            self.CSTurl = findall(u"\$\$\$\$\$([\S\s]*)",downurl)[0]
+            self.CSTurl = findall(u"\$\$\$\$\$([\S\s]*)", downurl)[0]
             self.ODname = findall(u"([\S\s]*)\^\^\^\^\^", filename)[0]
             self.CSTname = findall(u"\$\$\$\$\$([\S\s]*)", filename)[0]
         if WPSsupport and not WPSSupport_2:
             print("WPS支持")
             self.WPSRadioBtn.setDisabled(False)
-            self.WPSurl = findall(u"\^\^\^\^\^([\S\s]*)\$\$\$\$\$",downurl)[0]
-            self.WPSurl = findall(u",?([\S\s]*?),",self.WPSurl)
+            self.WPSurl = findall(u"\^\^\^\^\^([\S\s]*)\$\$\$\$\$", downurl)[0]
+            self.WPSurl = findall(u",?([\S\s]*?),", self.WPSurl)
             print(self.WPSurl)
-            self.WPSname = findall(u"\^\^\^\^\^([\S\s]*)\$\$\$\$\$",filename)[0]
-            self.WPSname = findall(u",?([\S\s]*?),",self.WPSname)
+            self.WPSname = findall(u"\^\^\^\^\^([\S\s]*)\$\$\$\$\$", filename)[0]
+            self.WPSname = findall(u",?([\S\s]*?),", self.WPSname)
             print(self.WPSname)
             self.WPSRadioBtn.setChecked(True)  # 默认WPS
-
 
         # 连接函数
         self.threadNumC.currentIndexChanged.connect(self.changeThreadNum)
@@ -586,25 +598,22 @@ class NewNetTaskWindow(AcrylicDialog):
         print(self.threadNum)
         if temp >= 32:
             if self.threadNum < 32:
-                warning = QMessageBox.question(
-                    self,
+                warning = MyQuestionBox(
                     '警告！',
-                    '你选择的线程过低！很可能会造成下载速度过慢或其他BUG！\n\n你确定要选择小于32个下载线程吗？')
+                    '你选择的线程过低！很可能会造成下载速度过慢或其他BUG！\n\n你确定要选择小于32个下载线程吗？').Question()
                 if warning == QMessageBox.No:
                     self.threadNum = temp
                     self.threadNumC.setCurrentIndex(self.threadNum - 1)
             elif temp <= 256:
                 if self.threadNum > 256:
                     counts = 3
-                    warning = QMessageBox.question(
-                        self,
+                    warning = MyQuestionBox(    
                         '警告！',
-                        '你选择的线程过高！把您的电脑淦爆！\n\n你确定要选择大于256个下载线程吗？')
+                        '你选择的线程过高！把您的电脑淦爆！\n\n你确定要选择大于256个下载线程吗？').Question()
                     while warning == QMessageBox.Yes:
-                        warning = QMessageBox.question(
-                            self,
+                        warning = MyQuestionBox(        
                             '警告！',
-                            f'你选择的线程过高！可能会把您的电脑淦爆！\n\n你确定要选择大于256个下载线程吗？({counts})')
+                            f'你选择的线程过高！可能会把您的电脑淦爆！\n\n你确定要选择大于256个下载线程吗？({counts})').Question()
                         if warning == QMessageBox.Yes:
                             counts -= 1
                             print(counts)
@@ -661,6 +670,7 @@ class NewNetTaskWindow(AcrylicDialog):
 
         self.decidePathBtn = QPushButton(self.decidePathG)
         self.decidePathBtn.setObjectName(u"decidePathBtn")
+        self.decidePathBtn.setProperty("round", True)
         sizePolicy2 = QSizePolicy(QSizePolicy.Minimum, QSizePolicy.Ignored)
         sizePolicy2.setHorizontalStretch(0)
         sizePolicy2.setVerticalStretch(0)
@@ -704,6 +714,7 @@ class NewNetTaskWindow(AcrylicDialog):
 
         self.startBtn = QPushButton(self)
         self.startBtn.setObjectName(u"startBtn")
+        self.startBtn.setProperty("round", True)
         sizePolicy3 = QSizePolicy(QSizePolicy.Minimum, QSizePolicy.Fixed)
         sizePolicy3.setHorizontalStretch(0)
         sizePolicy3.setVerticalStretch(0)
@@ -729,7 +740,7 @@ class NewNetTaskWindow(AcrylicDialog):
         self.startBtn.setText(u"\u5f00\u59cb\u4e0b\u8f7d")
 
     def getWPSDownloadLink(self):
-        DownloadLink = [] # 生成空列表
+        DownloadLink = []  # 生成空列表
         session = requests.Session()
         session.headers.update(headers)
         for i in self.WPSurl:
@@ -744,15 +755,17 @@ class NewNetTaskWindow(AcrylicDialog):
     def startDownload(self):
         print(self.threadNum)
         print(self.decidePathEdit.text())
-        if self.WPSRadioBtn.isChecked() == True: # WPS
+        if self.WPSRadioBtn.isChecked() == True:  # WPS
             DownloadLink = self.getWPSDownloadLink()
             for i in range(len(DownloadLink)):
-                newDownloadTask(self.icon,DownloadLink[i],self.WPSname[i],self.decidePathEdit.text(),self.threadNum,window)
-        elif self.ODRadioBtn.isChecked() == True: # OD
-            newDownloadTask(self.icon,self.ODurl,self.ODname,self.decidePathEdit.text(),self.threadNum,window)
-        elif self.CSTRadioBtn.isChecked() == True: # CST
+                newDownloadTask(self.icon, DownloadLink[i], self.WPSname[i], self.decidePathEdit.text(), self.threadNum,
+                                window)
+        elif self.ODRadioBtn.isChecked() == True:  # OD
+            newDownloadTask(self.icon, self.ODurl, self.ODname, self.decidePathEdit.text(), self.threadNum, window)
+        elif self.CSTRadioBtn.isChecked() == True:  # CST
             newDownloadTask(self.icon, self.CSTurl, self.CSTname, self.decidePathEdit.text(), self.threadNum, window)
         self.close()
+
 
 class NewTaskWindow(AcrylicWindow):
     def __init__(self, parent=None):
@@ -762,11 +775,11 @@ class NewTaskWindow(AcrylicWindow):
         self.resize(400, 400)
         self.setMinimumSize(QSize(360, 292))
         # QSS
-        with open(f"{skinName}/GlobalQSS.qss", "r") as f:
+        with open(f"{skinName}/GlobalQSS.qss", "r", encoding="utf-8") as f:
             GlobalQSS = f.read()
             # self.setStyleSheet(_)
             f.close()
-        with open(f"{skinName}/MainQSS.qss", "r") as f:
+        with open(f"{skinName}/MainQSS.qss", "r", encoding="utf-8") as f:
             MainQSS = f.read()
             # self.setStyleSheet(_)
             f.close()
@@ -929,7 +942,7 @@ class NewTaskWindow(AcrylicWindow):
                             allSize += float(i[3].text()[:-2])
                         self.allSizeLabel.setText(f"总: {len(self.tableList)}个文件（{allSize}MB)")
                 else:
-                    globalSignal.message_box.emit("ERROR", f"第{i + 1}个连接似乎有问题,请输入合法的链接!\n已自动跳过.", self.logoPixmap)
+                    globalSignal.message_box.emit(self.logoPixmap, "ERROR", f"第{i + 1}个连接似乎有问题,请输入合法的链接!\n已自动跳过.")
                     continue
 
             self.addTableButton.setEnabled(True)
@@ -944,7 +957,7 @@ class NewTaskWindow(AcrylicWindow):
             print(response)
 
             if response.status_code == 400:  # Bad Requests
-                globalSignal.message_box.emit("ERROR!", "HTTP400!Bad Url!\n请尝试更换下载链接!", self.logoPixmap)
+                globalSignal.message_box.emit(self.logoPixmap, "ERROR!", "HTTP400!Bad Url!\n请尝试更换下载链接!")
                 return 0
 
             while response.status_code == 302:  # 当302的时候
@@ -966,7 +979,7 @@ class NewTaskWindow(AcrylicWindow):
                 fileSize = int(response.headers["Content-Length"])
             except Exception as err:
                 fileSize = 0
-                globalSignal.message_box.emit('ERROR!', f'{url}获取文件大小失败!\n{err}', self.logoPixmap)
+                globalSignal.message_box.emit(self.logoPixmap, 'ERROR!', f'{url}获取文件大小失败!\n{err}')
 
             try:  # 如果是onedrive形式的连接获取filename
                 fileName = response.headers["Content-Disposition"]
@@ -984,10 +997,10 @@ class NewTaskWindow(AcrylicWindow):
             return fileSize, fileName, fileType, url
 
         except requests.exceptions.ConnectionError as err:
-            globalSignal.message_box.emit("网络连接失败！", f"请检查网络连接！\n{err}", self.logoPixmap)
+            globalSignal.message_box.emit(self.logoPixmap, "网络连接失败！", f"请检查网络连接！\n{err}")
             return 0
         except ValueError as err:
-            globalSignal.message_box.emit("网络连接失败！", f"请尝试关闭代理！\n{err}", self.logoPixmap)
+            globalSignal.message_box.emit(self.logoPixmap, "网络连接失败！", f"请尝试关闭代理！\n{err}")
             return 0
 
     def addTask(self):
@@ -996,6 +1009,7 @@ class NewTaskWindow(AcrylicWindow):
             newDownloadTask(f"{skinName}/logo.png", self.url[i], self.tableList[i][1].text(), self.pathEdit.text(),
                             threadNum, window)
         self.close()
+
 
 class MyProgressBar(QWidget):
     def __init__(self, parent=None):
@@ -1025,17 +1039,18 @@ class MyProgressBar(QWidget):
         self.value = value
         resizeAction(self.progresser, self.value * self.width() / 100, self.height())
 
+
 class SettingsWindow(AcrylicWindow):
     def __init__(self, parent=None):
         super().__init__(skinName, parent)
         self.titleBar.maxBtn.setEnabled(True)
         # QSS
-        with open(f"{skinName}/GlobalQSS.qss", "r") as f:
+        with open(f"{skinName}/GlobalQSS.qss", "r", encoding="utf-8") as f:
             GlobalQSS = f.read()
             # self.setStyleSheet(_)
             f.close()
 
-        with open(f"{skinName}/MainQSS.qss", "r") as f:
+        with open(f"{skinName}/MainQSS.qss", "r", encoding="utf-8") as f:
             MainQSS = f.read()
             # self.setStyleSheet(_)
             f.close()
@@ -1201,7 +1216,7 @@ class SettingsWindow(AcrylicWindow):
         self.GUIG.setTitle("界面设置")
         self.label_4.setText("在这里选择你想要的界面样式")
         self.getUpBtn.setText("\u68c0\u67e5\u66f4\u65b0")
-        self.nowVerLable.setText("当前版本:2.0.0Release,已是最新!")
+        self.nowVerLable.setText("当前版本:2.0.1(22.3.1),已是最新!")
         self.jiaQunBtn.setText(
             "\u70b9\u51fb\u52a0\u5165\u7fa4\u804a: \u6770\u514b\u59da\u306e\u5c0f\u5c4b \u4ee5\u83b7\u53d6\u652f\u6301")
         self.shengMingBtn.setText("\u4f7f\u7528\u58f0\u660e")
@@ -1223,7 +1238,7 @@ class SettingsWindow(AcrylicWindow):
         self.threadNumC.currentIndexChanged.connect(self.changeThreadNum)
         self.reduceSpeedEdit.editingFinished.connect(self.changeReduceSpeed)
         self.reduceSpeedEdit_2.editingFinished.connect(self.changereduceSpeed_2)
-        self.shengMingBtn.clicked.connect(lambda: globalSignal.message_box.emit("使用声明", ("               软件使用声明\n"
+        self.shengMingBtn.clicked.connect(lambda: globalSignal.message_box.emit(self.logoImg, "使用声明", ("               软件使用声明\n"
                                                                                          "本软件下载的系统仅供个人用户学习、研究使用。\n"
                                                                                          "任何用户不得将其用于任何商业用途\n"
                                                                                          "本软件下载来源\n"
@@ -1231,8 +1246,8 @@ class SettingsWindow(AcrylicWindow):
                                                                                          "QQ群:杰克姚の小屋(1045814906)(包括但不限于群文件和公告等)\n"
                                                                                          "网站:www.xiaoyouchr.cn/jod\n"
                                                                                          "本声明解释权归晓游ChR所有\n"
-                                                                                         "若你从以上声明的下载来源以外的途径下载了本软件，本软件制作方概不负责！"),
-                                                                                self.logoImg))
+                                                                                         "若你从以上声明的下载来源以外的途径下载了本软件，本软件制作方概不负责！")
+                                                                                ))
         self.GUIC.currentIndexChanged.connect(self.changeGUI)
 
     def changeReduceSpeed(self):
@@ -1287,8 +1302,8 @@ class SettingsWindow(AcrylicWindow):
             changeConfig()
 
         else:
-            QMessageBox.critical(
-                self,
+            MyMessageBox(
+                errorIcon,
                 'Error!',
                 '请输入正确路径！')
             defaultPath = backup
@@ -1302,10 +1317,9 @@ class SettingsWindow(AcrylicWindow):
         print(threadNum)
         if temp >= 32:
             if threadNum < 32:
-                warning = QMessageBox.question(
-                    self,
+                warning = MyQuestionBox(
                     '警告！',
-                    '你选择的线程过低！很可能会造成下载速度过慢或其他BUG！\n\n你确定要选择小于32个下载线程吗？')
+                    '你选择的线程过低！很可能会造成下载速度过慢或其他BUG！\n\n你确定要选择小于32个下载线程吗？').Question()
                 if warning == QMessageBox.Yes:
                     changeConfig()
                 if warning == QMessageBox.No:
@@ -1314,15 +1328,13 @@ class SettingsWindow(AcrylicWindow):
             elif temp <= 256:
                 if threadNum > 256:
                     counts = 3
-                    warning = QMessageBox.question(
-                        self,
+                    warning = MyQuestionBox(    
                         '警告！',
-                        '你选择的线程过高！把您的电脑淦爆！\n\n你确定要选择大于256个下载线程吗？')
+                        '你选择的线程过高！把您的电脑淦爆！\n\n你确定要选择大于256个下载线程吗？').Question()
                     while warning == QMessageBox.Yes:
-                        warning = QMessageBox.question(
-                            self,
+                        warning = MyQuestionBox(        
                             '警告！',
-                            f'你选择的线程过高！可能会把您的电脑淦爆！\n\n你确定要选择大于256个下载线程吗？({counts})')
+                            f'你选择的线程过高！可能会把您的电脑淦爆！\n\n你确定要选择大于256个下载线程吗？({counts})').Question()
                         if warning == QMessageBox.Yes:
                             counts -= 1
                             print(counts)
@@ -1343,6 +1355,112 @@ class SettingsWindow(AcrylicWindow):
         global GUI
         GUI = int(self.GUIC.currentIndex())
         changeConfig()
+
+
+class MyMessageBox(AcrylicWindow):
+    def __init__(self, icon: QPixmap, title: str, content: str, parent=None):
+        super().__init__(parent=parent, skinName=skinName)
+        self.setObjectName("MyMessageBox")
+        self.setFixedSize(400, 300)
+        # QSS
+        with open(f"{skinName}/GlobalQSS.qss", "r", encoding="utf-8") as f:
+            _ = f.read()
+            self.setStyleSheet(_)
+            f.close()
+
+        self.icon = QLabel(self)
+        self.icon.setObjectName(u"icon")
+        self.icon.setGeometry(QRect(10, 250, 41, 41))
+        self.icon.setScaledContents(True)
+        self.icon.setPixmap(icon)
+
+        self.textEdit = QTextEdit(self)
+        self.textEdit.setObjectName(u"textEdit")
+        self.textEdit.setGeometry(QRect(10, 30, 381, 211))
+        self.textEdit.setReadOnly(True)
+
+        self.ok = QPushButton(self)
+        self.ok.setObjectName(u"ok")
+        self.ok.setGeometry(QRect(310, 260, 75, 23))
+        self.ok.setProperty("round", True)
+
+        # retranslateUi
+        self.setWindowTitle(title)
+        self.textEdit.setText(content)
+        self.ok.setText("我知道了")
+        self.ok.clicked.connect(self.close)
+
+        self.show()
+        self.exec_()
+
+    def keyPressEvent(self, event):
+        super().keyPressEvent(event)
+        if event.key() == Qt.Key_Escape:
+            self.close()  # 关闭程序
+
+
+class MyQuestionBox(AcrylicDialog):
+    def __init__(self, title: str, content: str, parent=None):
+        super().__init__(parent=parent, skinName=skinName)
+        self.setObjectName("MyQuestionBox")
+        self.setFixedSize(400, 300)
+        # QSS
+        with open(f"{skinName}/GlobalQSS.qss", "r", encoding="utf-8") as f:
+            _ = f.read()
+            self.setStyleSheet(_)
+            f.close()
+
+        self.state = None
+
+        self.icon = QLabel(self)
+        self.icon.setObjectName(u"icon")
+        self.icon.setGeometry(QRect(10, 250, 41, 41))
+        self.icon.setScaledContents(True)
+        self.icon.setPixmap(questionIcon)
+
+        self.textEdit = QTextEdit(self)
+        self.textEdit.setObjectName(u"textEdit")
+        self.textEdit.setGeometry(QRect(10, 30, 381, 211))
+        self.textEdit.setReadOnly(True)
+
+        self.okBtn = QPushButton(self)
+        self.okBtn.setObjectName(u"ok")
+        self.okBtn.setGeometry(QRect(310, 260, 75, 23))
+        self.okBtn.setProperty("round", True)
+
+        self.noBtn = QPushButton(self)
+        self.noBtn.setObjectName(u"no")
+        self.noBtn.setGeometry(QRect(210, 260, 75, 23))
+        self.noBtn.setProperty("round", True)
+
+        # retranslateUi
+        self.setWindowTitle(title)
+        self.textEdit.setText(content)
+        self.okBtn.setText("确定")
+        self.okBtn.clicked.connect(self.ok)
+        self.noBtn.setText("取消")
+        self.noBtn.clicked.connect(self.no)
+
+    def Question(self):
+        self.show()
+        self.exec_()
+
+        if self.state:
+            return self.state
+    
+    def ok(self):
+        self.close()
+        self.state = QMessageBox.Yes
+    
+    def no(self):
+        self.close()
+        self.state = QMessageBox.No
+    
+    def keyPressEvent(self, event):
+        super().keyPressEvent(event)
+        if event.key() == Qt.Key_Escape:
+            self.close()  # 关闭程序
+
 
 class ListGroupBox(QGroupBox):
     def __init__(self, parent, name: str, filesize, info: str, updata, version, uplog: str, filename, downurl, videourl,
@@ -1451,9 +1569,10 @@ class ListGroupBox(QGroupBox):
         self.moreBtn.clicked.connect(self.Open)
         self.videoBtn.clicked.connect(lambda: open_new_tab(self.videourl[self.currentIndex]))
         self.verComboBox.currentIndexChanged.connect(self.changeVersion)
-        self.logsBtn.clicked.connect(lambda: MyMessageBox(f"{self.name}の更新日志", self.uplog, self.icon))
+        self.logsBtn.clicked.connect(lambda: MyMessageBox(self.icon, f"{self.name}の更新日志", self.uplog))
         self.downBtn.clicked.connect(
-            lambda: NewNetTaskWindow(f"temp/{self.name}-icon", downurl[self.currentIndex], filename[self.currentIndex],parent.parent()))
+            lambda: NewNetTaskWindow(f"temp/{self.name}-icon", downurl[self.currentIndex], filename[self.currentIndex],
+                                     parent.parent()))
         # setText
         self.setTitle(self.name)
         self.label.setText("版本:")
@@ -1479,7 +1598,7 @@ class ListGroupBox(QGroupBox):
             self.opened = False
 
     def setImg(self):
-        self.icon = requests.get(self.icon).content
+        self.icon = requests.get(url=self.icon, headers=headers, proxies=proxies).content
         with open(f'temp/{self.name}-icon', 'wb') as f:
             f.write(self.icon)
             f.close()
@@ -1504,6 +1623,7 @@ class ListGroupBox(QGroupBox):
             self.moreWidget.move(self.w - 70, 20)
         elif self.opened == True:
             self.moreWidget.move(self.w - 500, 20)
+
 
 class PictureGroupBox(QWidget):
     def __init__(self, parent, name: str, filesize, info: str, updata, version, uplog: str, filename, downurl, videourl,
@@ -1561,7 +1681,7 @@ class PictureGroupBox(QWidget):
         self.BGButton.clicked.connect(self.Open)
 
     def setImg(self):
-        self.icon = requests.get(self.icon).content
+        self.icon = requests.get(self.icon, headers=headers, proxies=proxies).content
         with open(f'temp/{self.name}-icon', 'wb') as f:
             f.write(self.icon)
             f.close()
@@ -1574,6 +1694,7 @@ class PictureGroupBox(QWidget):
         moveAction(self, 0, 0)
         resizeAction(self, self.parent().width(), self.parent().height())
         print(self.width(), self.parent().width(), self.parent().height())
+
 
 class Window(AcrylicWindow):
     # 自定义信号
@@ -1598,7 +1719,7 @@ class Window(AcrylicWindow):
         self.titleBar.raise_()
 
         # QSS
-        with open(f"{skinName}/GlobalQSS.qss", "r") as f:
+        with open(f"{skinName}/GlobalQSS.qss", "r", encoding="utf-8") as f:
             _ = f.read()
             self.setStyleSheet(_)
             f.close()
@@ -1615,7 +1736,7 @@ class Window(AcrylicWindow):
 
         # 读取下载历史并自动开始
         if path.exists("history.hst") == True:
-            with open("history.hst", "r") as f:
+            with open("history.hst", "r", encoding="utf-8") as f:
                 tmp = f.read()
                 f.close()
                 tmp = findall(r"<hst>([\s\S]*?)</hst>", tmp)
@@ -1698,7 +1819,7 @@ class Window(AcrylicWindow):
         self.main.setObjectName(u"main")
         self.main.setGeometry(QRect(0, 40, 1800, 560))
 
-        with open(f"{skinName}/MainQSS.qss", "r") as f:
+        with open(f"{skinName}/MainQSS.qss", "r", encoding="utf-8") as f:
             self.main.setStyleSheet(f.read())
             f.close()
 
@@ -1786,7 +1907,7 @@ class Window(AcrylicWindow):
         self.listBtn.setText("推荐资源")
         self.downBtn.setText("任务列表")
         self.toolsBtn.setText("实用工具")
-        self.verLable.setText("2.0.0Release")
+        self.verLable.setText("2.0.1(22.3.1)")
 
         self.listNotLoaded = False
         # 加载GIF
@@ -1801,18 +1922,22 @@ class Window(AcrylicWindow):
 
         def getWebsiteContent():
             try:
-                content = requests.get("https://obs.cstcloud.cn/share/obs/xiaoyouchr/config.json", headers, verify=False)
+                content = requests.get("https://obs.cstcloud.cn/share/obs/xiaoyouchr/config.json", headers=headers,
+                                       proxies=proxies, verify=False)
                 content.encoding = "utf-8"
                 content = content.text
                 self.load_list.emit(content)
             except requests.exceptions.ConnectionError as err:
-                QMessageBox.critical(self, "网络连接失败！", f"请尝试关闭代理！\n{err}")
+                print(err)
+                globalSignal.message_box.emit(errorIcon, "网络连接失败！", f"请尝试关闭代理！\n{err}")
                 self.listNotLoaded = True
             except ValueError as err:
-                QMessageBox.critical(self, "网络连接失败！", f"请检查网络连接！\n{err}")
+                print(err)
+                globalSignal.message_box.emit(errorIcon, "网络连接失败！", f"请检查网络连接！\n{err}")
                 self.listNotLoaded = True
             except Exception as err:
-                QMessageBox.critical(self, "未知错误!", f"请联系开发者,QQ:2078107317！\n{err}")
+                print(err)
+                globalSignal.message_box.emit(errorIcon, "未知错误!", f"请联系开发者,QQ:2078107317！\n{err}")
                 self.listNotLoaded = True
 
         threading.Thread(target=getWebsiteContent, daemon=True).start()
@@ -1833,18 +1958,18 @@ class Window(AcrylicWindow):
 
             def getWebsiteContent():
                 try:
-                    content = requests.get("https://128.14.239.141/config.txt", headers, verify=False)
+                    content = requests.get("https://128.14.239.141/config.txt", headers, verify=False, proxies=proxies)
                     content.encoding = "utf-8"
                     content = content.text
                     self.load_list.emit(content)
                 except requests.exceptions.ConnectionError as err:
-                    QMessageBox.critical(self, "网络连接失败！", f"请尝试关闭代理！\n{err}")
+                    MyMessageBox(errorIcon, "网络连接失败！", f"请尝试关闭代理！\n{err}")
                     self.listNotLoaded = True
                 except ValueError as err:
-                    QMessageBox.critical(self, "网络连接失败！", f"请检查网络连接！\n{err}")
+                    MyMessageBox(errorIcon, "网络连接失败！", f"请检查网络连接！\n{err}")
                     self.listNotLoaded = True
                 except Exception as err:
-                    QMessageBox.critical(self, "未知错误!", f"请联系开发者,QQ:2078107317！\n{err}")
+                    MyMessageBox(errorIcon, "未知错误!", f"请联系开发者,QQ:2078107317！\n{err}")
                     self.listNotLoaded = True
 
             threading.Thread(target=getWebsiteContent, daemon=True).start()
@@ -1922,7 +2047,8 @@ class Window(AcrylicWindow):
             icon = findall(r'<icon>([\s\S]*)</icon>', temp)
             icon = icon[0]
             if GUI:  # 列表型
-                listGroupBoxesList[i] = ListGroupBox(self, name, filesize, info, updata, version, uplog, filename, downurl, videourl, icon)
+                listGroupBoxesList[i] = ListGroupBox(self, name, filesize, info, updata, version, uplog, filename,
+                                                     downurl, videourl, icon)
                 listGroupBoxesList[i].resize(self.w - 25, 100)
                 # Action
                 listGroupBoxesList[i].move(-600, i * 105 + 5)
@@ -1937,7 +2063,6 @@ class Window(AcrylicWindow):
                 listGroupBoxesList[i].show()
 
         self.loadingGifLable.close()
-
     # 自适应
     def resizeEvent(self, e):
         super().resizeEvent(e)
@@ -1975,11 +2100,13 @@ class Window(AcrylicWindow):
             i.resize(self.w - 25, 73)
 
     def closeEvent(self, e):
-        question = QMessageBox.question(self, "您在尝试退出哦！", "您真的要退出吗？")
+        question = MyQuestionBox("您在尝试退出哦！", "您真的要退出吗？").Question()
+        print(question)
         if question == QMessageBox.Yes:
             super().closeEvent(e)
         else:
             e.ignore()
+
 
 if __name__ == '__main__':
     freeze_support()
@@ -1996,7 +2123,7 @@ if __name__ == '__main__':
     if not lockFile.tryLock(2000):
         msg_box = QMessageBox()
         msg_box.setWindowTitle("提示")
-        msg_box.setText("GhostDownloader2已在运行!")
+        msg_box.setText("Ghost Downloader 2 已在运行!")
         msg_box.setIcon(QMessageBox.Information)
         msg_box.addButton("确定", QMessageBox.YesRole)
         msg_box.exec()
@@ -2005,7 +2132,7 @@ if __name__ == '__main__':
     # 创建/读取 配置文件
     if path.exists("config.cfg") == True:
         try:
-            with open("config.cfg", "r") as f:
+            with open("config.cfg", "r", encoding="utf-8") as f:
                 _ = []  # 生成空表格
 
                 for line in f.readlines():
@@ -2027,10 +2154,10 @@ if __name__ == '__main__':
                 f.close()
         except:
             f.close()
-            with open("config.cfg", "w") as f:
+            with open("config.cfg", "w", encoding="utf-8") as f:
                 f.write("32\n%s\nskins/Default\n50\n200\n1" % getcwd().replace("\\", "/"))
                 f.close()
-            with open("config.cfg", "r") as f:
+            with open("config.cfg", "r", encoding="utf-8") as f:
                 _ = []  # 生成空表格
 
                 for line in f.readlines():
@@ -2051,10 +2178,10 @@ if __name__ == '__main__':
                 print(GUI)
                 f.close()
     else:
-        with open("config.cfg", "w") as f:
+        with open("config.cfg", "w", encoding="utf-8") as f:
             f.write("32\n%s\nskins/Default\n50\n200\n1" % getcwd().replace("\\", "/"))
             f.close()
-        with open("config.cfg", "r") as f:
+        with open("config.cfg", "r", encoding="utf-8") as f:
             _ = []  # 生成空表格
 
             for line in f.readlines():
@@ -2079,6 +2206,10 @@ if __name__ == '__main__':
     logoIcon.addFile(f"{skinName}/logo.png", QSize(), QIcon.Normal, QIcon.Off)
     app.setWindowIcon(logoIcon)
 
+    errorIcon = QPixmap(f"{skinName}/error.png")
+
+    questionIcon = QPixmap(f"{skinName}/question.png")
+
     Version = 200
     headers = {
         "user-agent": "Mozilla/5.0 (Windows NT 6.3; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/93.0.4577.63 Safari/537.36 Edg/93.0.961.44"
@@ -2100,6 +2231,20 @@ if __name__ == '__main__':
                     "(?::\\d{2,5})?" +
                     "(?:/\\S*)?" +
                     "$", IGNORECASE)
+
+    # 代理
+    proxiesIP = CheckProxyServer().get_server_form_Win()
+    print(proxiesIP)
+    if proxiesIP:
+        proxies = {
+            "http": proxiesIP,
+            "https": proxiesIP,
+        }
+    else:
+        proxies = {
+            "http": None,
+            "https": None,
+        }
 
     # 托盘
     systemTray = QSystemTrayIcon()  # 创建托盘

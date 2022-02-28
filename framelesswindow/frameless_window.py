@@ -30,6 +30,7 @@ class FramelessWindow(QWidget):
                             Qt.WindowMinimizeButtonHint | Qt.WindowMaximizeButtonHint)
         # add DWM shadow and window animation
         self.windowEffect.addWindowAnimation(self.winId())
+
         self.windowEffect.addShadowEffect(self.winId())
         self.resize(500, 500)
         self.titleBar.raise_()

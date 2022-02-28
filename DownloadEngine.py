@@ -15,7 +15,7 @@ ssl._create_default_https_context = ssl._create_unverified_context
 requests.packages.urllib3.disable_warnings()
 
 class DLWorker:
-    def __init__(self, name:str, url:str, range_start, range_end, cache_dir, finish_callback):
+    def __init__(self, name:str, url:str, range_start, range_end, cache_dir, finish_callback,proxiesIP):
         self.name = name
         self.url = url
         self.cache_filename = f"{cache_dir}{name}.gd2"
@@ -25,11 +25,12 @@ class DLWorker:
         self.finish_callback = finish_callback # 通知调用 DLWorker 的地方
         self.terminate_flag = False # 该标志用于终结自己
         self.FINISH_TYPE = "" # DONE 完成工作, HELP 需要帮忙, RETIRE 不干了
+        self.proxiesIP = proxiesIP
 
     def __run(self):
         chunk_size = 1*1024 # 1 kb
         headers = {'Range': f'bytes={self.range_curser}-{self.range_end}', 'Accept-Encoding': '*','user-agent': 'Mozilla/5.0 (Windows NT 6.3; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/93.0.4577.63 Safari/537.36 Edg/93.0.961.44'}
-        req = requests.get(self.url, stream=True, verify=False, headers=headers)
+        req = requests.get(self.url, stream=True, verify=False, headers=headers,proxies=self.proxiesIP)
         with open(self.cache_filename, "wb") as cache:
             for chunk in req.iter_content(chunk_size=chunk_size):
                 if self.terminate_flag:
@@ -66,13 +67,14 @@ class DLWorker:
         return _progress
 
 class DownloadEngine(Process):
-    def __init__(self,url: str, filename: str, download_dir: str, blocks_num: int):
+    def __init__(self,url: str, filename: str, download_dir: str, blocks_num: int, proxiesIP):
         super(DownloadEngine, self).__init__(daemon=True)
 
         self.blocks_num = blocks_num
         self.download_dir = download_dir
         self.filename = filename
         self.url = url
+        self.proxiesIP = proxiesIP
 
         self.__bad_url_flag = False
         self.file_size = self.__get_size()
@@ -204,7 +206,7 @@ class DownloadEngine(Process):
     def __give_me_a_worker(self, start, end):
         worker = DLWorker(name=f"{self.filename}.{start}",
                           url=self.url, range_start=start, range_end=end, cache_dir=self.cache_dir,
-                          finish_callback=self.__on_dlworker_finish)
+                          finish_callback=self.__on_dlworker_finish, proxiesIP=self.proxiesIP)
         return worker
 
     def __on_dlworker_finish(self, worker: DLWorker):

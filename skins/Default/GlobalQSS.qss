@@ -1,11 +1,11 @@
 * {	
 	background:transparent;
-	font:12pt "Î¢ÈíÑÅºÚ";
+	font:12pt "å¾®è½¯é›…é»‘";
 }
 
 QWidget#btnBackground{
 	background-color: rgb(255, 255 , 255);
-	border-radius:15px
+	border-radius:15px;
 }
 
 QScrollBar:vertical {
@@ -76,7 +76,7 @@ QPushButton[round="true"]:enabled:pressed{
 QTextEdit {
         border-radius: 10px;
         border: 1px solid rgb(0, 170, 255);
-        color: rgb(136, 179, 234);
+        color: rgb(84, 84, 84);
         background: transparent;
 }
 QMessageBox {

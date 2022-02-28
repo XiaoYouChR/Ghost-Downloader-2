@@ -16,9 +16,10 @@ QCheckBox:!enabled{
 .QWidget{
    background-color:transparent;
 }
-QLabel[blue=\"true\"]{
-	color:rgb(0, 170, 255)
+QLabel[blue="true"]{
+	color:rgb(0, 170, 255);
 }
+
 QLineEdit {
         border-radius: 10px;
         border: 1px solid rgb(56, 99, 154);
@@ -101,10 +102,4 @@ QComboBox QAbstractItemView::item {
 QComboBox QAbstractItemView::item:selected {
         background: rgb(232, 241, 250);
         color: rgb(2, 65, 132);
-}
-QTextEdit {
-        border-radius: 10px;
-        border: 1px solid rgb(0, 170, 255);
-        color: rgb(84, 84, 84);
-        background: transparent;
 }
