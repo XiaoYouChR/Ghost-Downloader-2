@@ -102,7 +102,7 @@ class DownloadEngine(Process):
             readable_size = self.__get_readable_size(self.file_size)
             pathfilename = f'{self.download_dir}/{self.filename}'
             sys.stdout.write(
-                f"----- Ghost-Downloader [v2.0.0] -----\n[url] {self.url}\n[path] {pathfilename}\n[size] {readable_size}\n")
+                f"----- Ghost-Downloader [v2.0.1] -----\n[url] {self.url}\n[path] {pathfilename}\n[size] {readable_size}\n")
 
         # TODO 尝试整理缓存文件夹内的相关文件
         if not self.__bad_url_flag:

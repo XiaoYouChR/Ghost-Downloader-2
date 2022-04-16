@@ -45,20 +45,21 @@ class FramelessWindow(QWidget):
 
             w, h = self.width(), self.height()
             lx = xPos < self.BORDER_WIDTH
-            rx = xPos + 3 > w - self.BORDER_WIDTH
-            # ty = yPos < self.BORDER_WIDTH
+            # rx = xPos + 3 > w - self.BORDER_WIDTH
+            rx = xPos > w - self.BORDER_WIDTH
+            ty = yPos < self.BORDER_WIDTH
             by = yPos > h - self.BORDER_WIDTH
 
-            # if lx and ty:
-            #     return True, win32con.HTTOPLEFT
-            if rx and by:
+            if lx and ty:
+                return True, win32con.HTTOPLEFT
+            elif rx and by:
                 return True, win32con.HTBOTTOMRIGHT
-            # elif rx and ty:
-            #     return True, win32con.HTTOPRIGHT
+            elif rx and ty:
+                return True, win32con.HTTOPRIGHT
             elif lx and by:
                 return True, win32con.HTBOTTOMLEFT
-            # elif ty:
-            #     return True, win32con.HTTOP
+            elif ty:
+                return True, win32con.HTTOP
             elif by:
                 return True, win32con.HTBOTTOM
             elif lx:
@@ -177,19 +178,19 @@ class FramelessDialog(QDialog):
             w, h = self.width(), self.height()
             lx = xPos < self.BORDER_WIDTH
             rx = xPos + 3 > w - self.BORDER_WIDTH
-            # ty = yPos < self.BORDER_WIDTH
+            ty = yPos < self.BORDER_WIDTH
             by = yPos > h - self.BORDER_WIDTH
 
-            # if lx and ty:
-            #     return True, win32con.HTTOPLEFT
-            if rx and by:
+            if lx and ty:
+                return True, win32con.HTTOPLEFT
+            elif rx and by:
                 return True, win32con.HTBOTTOMRIGHT
-            # elif rx and ty:
-            #     return True, win32con.HTTOPRIGHT
+            elif rx and ty:
+                return True, win32con.HTTOPRIGHT
             elif lx and by:
                 return True, win32con.HTBOTTOMLEFT
-            # elif ty:
-            #     return True, win32con.HTTOP
+            elif ty:
+                return True, win32con.HTTOP
             elif by:
                 return True, win32con.HTBOTTOM
             elif lx:

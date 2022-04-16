@@ -1216,7 +1216,7 @@ class SettingsWindow(AcrylicWindow):
         self.GUIG.setTitle("界面设置")
         self.label_4.setText("在这里选择你想要的界面样式")
         self.getUpBtn.setText("\u68c0\u67e5\u66f4\u65b0")
-        self.nowVerLable.setText("当前版本:2.0.1(22.3.1),已是最新!")
+        self.nowVerLable.setText("当前版本:2.0.1(22.4.16),已是最新!")
         self.jiaQunBtn.setText(
             "\u70b9\u51fb\u52a0\u5165\u7fa4\u804a: \u6770\u514b\u59da\u306e\u5c0f\u5c4b \u4ee5\u83b7\u53d6\u652f\u6301")
         self.shengMingBtn.setText("\u4f7f\u7528\u58f0\u660e")
@@ -1361,7 +1361,7 @@ class MyMessageBox(AcrylicWindow):
     def __init__(self, icon: QPixmap, title: str, content: str, parent=None):
         super().__init__(parent=parent, skinName=skinName)
         self.setObjectName("MyMessageBox")
-        self.setFixedSize(400, 300)
+        self.setMinimumSize(400, 300)
         # QSS
         with open(f"{skinName}/GlobalQSS.qss", "r", encoding="utf-8") as f:
             _ = f.read()
@@ -1907,7 +1907,7 @@ class Window(AcrylicWindow):
         self.listBtn.setText("推荐资源")
         self.downBtn.setText("任务列表")
         self.toolsBtn.setText("实用工具")
-        self.verLable.setText("2.0.1(22.3.1)")
+        self.verLable.setText("2.0.1(22.4.16)")
 
         self.listNotLoaded = False
         # 加载GIF
@@ -2115,7 +2115,10 @@ if __name__ == '__main__':
     requests.packages.urllib3.disable_warnings()
 
     # 创建application
+    QApplication.setHighDpiScaleFactorRoundingPolicy(Qt.HighDpiScaleFactorRoundingPolicy.PassThrough)
     QApplication.setAttribute(Qt.AA_EnableHighDpiScaling)
+    QApplication.setAttribute(Qt.AA_UseHighDpiPixmaps)
+
     app = QApplication(sys.argv)
 
     # 检测程序是否重复运行
