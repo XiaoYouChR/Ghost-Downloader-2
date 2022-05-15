@@ -72,6 +72,7 @@ class DownloadEngine(Process):
 
         self.blocks_num = blocks_num
         self.download_dir = download_dir
+        print(download_dir)
         self.filename = filename
         self.url = url
         self.proxiesIP = proxiesIP
@@ -261,7 +262,6 @@ class DownloadEngine(Process):
         for s, e in self.__ask_for_work(n):
             worker = self.__give_me_a_worker(s, e)
             self.__whip(worker)
-
 
     def __sew(self):
         self.__done.set()

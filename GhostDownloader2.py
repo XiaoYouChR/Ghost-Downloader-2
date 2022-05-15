@@ -12,7 +12,7 @@ from urllib import request
 from webbrowser import open_new_tab
 
 import requests
-from PySide2.QtCore import QRect, Signal, QSize, QLockFile, QObject
+from PySide2.QtCore import QRect, Signal, QSize, QLockFile, QObject,QPropertyAnimation, QEasingCurve
 from PySide2.QtGui import Qt, QPixmap, QIcon, QMovie
 from PySide2.QtWidgets import QScrollArea, QWidget, QPushButton, QSizePolicy, QLabel, QApplication, QMessageBox, \
     QComboBox, QGroupBox, QHBoxLayout, QVBoxLayout, QTextEdit, QLineEdit, QSpacerItem, QFileDialog, \
@@ -199,6 +199,79 @@ def newDownloadTask(iconPath: str, url: str, filename: str, download_dir: str, b
 
 
 # 类
+class PictureLabel(QLabel):
+    def __init__(self, parent, pixmap: QPixmap=None):
+        super(PictureLabel, self).__init__(parent)
+        self.setScaledContents(True)
+
+        if pixmap:
+            self.setPixmap(pixmap)
+
+
+class BeggingWindow(AcrylicWindow):
+    def __init__(self, parent=None):
+        super(BeggingWindow, self).__init__(parent=parent, skinName=skinName)
+
+        # QSS
+        with open(f"{skinName}/GlobalQSS.qss", "r", encoding="utf-8") as f:
+            GlobalQSS = f.read()
+            # self.setStyleSheet(_)
+            f.close()
+
+        with open(f"{skinName}/MainQSS.qss", "r", encoding="utf-8") as f:
+            MainQSS = f.read()
+            # self.setStyleSheet(_)
+            f.close()
+
+        self.setStyleSheet(GlobalQSS + MainQSS)
+
+        self.setWindowTitle("赞助晓游ChR写出更好的 /病毒(划掉)/ 程序.")
+        self.setObjectName("BeggingWindow")
+        self.setFixedSize(800, 600)
+
+        self.QQLabel = PictureLabel(self)
+        self.QQLabel.setGeometry(20,40,210,300)
+        self.WechatLabel = PictureLabel(self)
+        self.WechatLabel.setGeometry(250,40,210,300)
+        self.AlipayLabel = PictureLabel(self)
+        self.AlipayLabel.setGeometry(480,40,210,300)
+
+        self.Label = QLabel(self)
+        self.setObjectName("Label")
+        self.Label.move(310,15)
+        self.Label.setText("感谢Thanks♪(･ω･)ﾉ捐赠!~ 谢谢您!~")
+
+        threading.Thread(target=lambda: self.__setPixmap("https://obs.cstcloud.cn/share/obs/xiaoyouchr/QQ.png","QQ",self.QQLabel), daemon=True).start()  # 设置图片
+        threading.Thread(target=lambda: self.__setPixmap("https://obs.cstcloud.cn/share/obs/xiaoyouchr/Wechat.png","Wechat",self.WechatLabel), daemon=True).start()  # 设置图片
+        threading.Thread(target=lambda: self.__setPixmap("https://obs.cstcloud.cn/share/obs/xiaoyouchr/Alipay.jpg","Alipay",self.AlipayLabel), daemon=True).start()  # 设置图片
+
+        self.textEdit = QTextEdit(self)
+        self.textEdit.setObjectName(u"textEdit")
+        self.textEdit.setGeometry(QRect(20,350,760,230))
+        self.textEdit.setReadOnly(True)
+
+        response = requests.get("https://obs.cstcloud.cn/share/obs/xiaoyouchr/JuanZengInfomation.txt",headers=headers,proxies=proxies,verify=False)
+        response.encoding = "utf-8"
+        response = response.text
+
+        self.textEdit.setText(response)
+
+        self.show()
+        self.exec_()
+        
+    def __setPixmap(self, url:str, name:str, label:QLabel):
+        global proxies
+
+        self.icon = requests.get(url, headers=headers, proxies=proxies).content
+
+        with open(f'temp/{name}-icon', 'wb') as f:
+            f.write(self.icon)
+            f.close()
+        self.icon = QPixmap(f'temp/{name}-icon')
+
+        label.setPixmap(self.icon)
+
+
 class CheckProxyServer:
 
     def __init__(self):
@@ -238,7 +311,7 @@ class DownGroupBox(QGroupBox):
     def __init__(self, icon: QPixmap, url: str, filename: str, download_dir: str, blocks_num: int, parent=None):
         super().__init__(parent=parent.downWidget)
 
-        assert 1 <= blocks_num <= 1024
+        assert 1 <= blocks_num <= 2048
 
         self.w = self.width()
         self.h = self.height()
@@ -271,7 +344,7 @@ class DownGroupBox(QGroupBox):
             self.progressBar = MyProgressBar(self)
             self.progressBar.move(74, 26)
             self.progressBar.resize(492, 21)
-            self.progressBar.setValue(0)
+            self.progressBar.setValue(100)
 
             self.openFileBtn = QPushButton(self)
             self.openFileBtn.setGeometry(QRect(441, 50, 71, 21))
@@ -300,6 +373,11 @@ class DownGroupBox(QGroupBox):
             self.threadNumLabel = QLabel(self)
             self.threadNumLabel.setGeometry(QRect(464, 5, 200, 18))
 
+            self.JuanZengBtn = QPushButton(self)
+            self.JuanZengBtn.setGeometry(QRect(360, 5, 51, 21))
+            self.JuanZengBtn.setObjectName(u"JuanZengBtn")
+            self.JuanZengBtn.setProperty("round", True)
+
             # Icon
             self.pauseIcon = QIcon()
             self.pauseIcon.addFile(f"{skinName}/pause", QSize(), QIcon.Normal, QIcon.Off)
@@ -312,6 +390,7 @@ class DownGroupBox(QGroupBox):
             self.cancelBtn.setGeometry(QRect(551, 50, 21, 21))
 
             # retranslateUi
+            self.JuanZengBtn.setText("捐赠")
             self.openFileBtn.setText("打开目录")
             self.stateLabel.setText("正在准备...")
             self.cancelBtn.setText("╳")
@@ -324,6 +403,7 @@ class DownGroupBox(QGroupBox):
             self.openFileBtn.clicked.connect(lambda: startfile(self.download_dir))
             self.pauseBtn.clicked.connect(self.pause)
             self.cancelBtn.clicked.connect(self.cancel)
+            self.JuanZengBtn.clicked.connect(BeggingWindow)
 
             # CreatingProcess
             self.Process = DownloadEngine(url, filename, download_dir, blocks_num, proxies)
@@ -405,6 +485,7 @@ class DownGroupBox(QGroupBox):
                 systemTray.showMessage("Hey--下载失败了!", f"{self.filename} 已失败下载!", logoIcon)
                 systemTray.messageClicked.connect(window.show)
                 globalSignal.change_text.emit(self.stateLabel, "下载完成!")
+                break
 
     def __get_readable_size(self, size):
         units = ["B", "KB", "MB", "GB", "TB", "PB"]
@@ -726,7 +807,7 @@ class NewNetTaskWindow(AcrylicDialog):
         # 设置文本
         self.setWindowTitle(u"\u65b0\u5efa\u4e0b\u8f7d\u4efb\u52a1")
         self.threadNumG.setTitle(u"\u786e\u5b9a\u60a8\u7684\u4e0b\u8f7d\u7ebf\u7a0b\u6570")
-        self.threadNumC.addItems([str(i + 1) for i in range(1024)])
+        self.threadNumC.addItems([str(i + 1) for i in range(2048)])
         self.threadNumC.setCurrentIndex(threadNum - 1)
         self.warningLabel.setText(
             u"\u8bf7\u52ff\u8bbe\u7f6e\u8fc7\u9ad8\u7684\u4e0b\u8f7d\u7ebf\u7a0b,\u56e0\u4e3a\u8fd9\u53ef\u80fd\u9020\u6210\u7535\u8111\u5361\u987f\u548c\u4e0b\u8f7d\u5931\u8d25!")
@@ -1012,6 +1093,9 @@ class NewTaskWindow(AcrylicWindow):
 
 
 class MyProgressBar(QWidget):
+
+    changeValue = Signal(float)
+
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setObjectName("MyProgressBar")
@@ -1024,10 +1108,17 @@ class MyProgressBar(QWidget):
         self.progresser.setObjectName("progresser")
         self.progresser.setStyleSheet("  background:rgb(100, 160, 220);")
         self.progresser.move(0, 0)
-        self.resize(0, self.height())
+        self.progresser.resize(0, self.height())
+
+        self.animation = QPropertyAnimation(self.progresser, b"geometry")
+        self.animation.setDuration(300)
+        self.animation.setEasingCurve(QEasingCurve.OutQuad)
 
         self.value = 0
-        print(type(self.value))
+
+        self.progresser.resize(self.value * self.width() / 100, self.height())
+
+        self.changeValue.connect(self.__setValue)
 
         self.show()
 
@@ -1035,9 +1126,13 @@ class MyProgressBar(QWidget):
         super().resizeEvent(event)
         self.progresser.resize(self.value * self.width() / 100, self.height())
 
-    def setValue(self, value):
+    def setValue(self,value):
+        self.changeValue.emit(value)
+
+    def __setValue(self, value):
         self.value = value
-        resizeAction(self.progresser, self.value * self.width() / 100, self.height())
+        self.animation.setEndValue(QRect(0, 0, self.value * self.width() / 100, self.height()))
+        self.animation.start()
 
 
 class SettingsWindow(AcrylicWindow):
@@ -1179,7 +1274,12 @@ class SettingsWindow(AcrylicWindow):
 
         self.BtnLayout = QHBoxLayout()
         self.BtnLayout.setObjectName(u"BtnLayout")
-
+        
+        self.JuanZengBtn = QPushButton(self)
+        self.JuanZengBtn.setObjectName(u"JuanZengBtn")
+        self.JuanZengBtn.setProperty("round", True)
+        self.BtnLayout.addWidget(self.JuanZengBtn)
+        
         self.jiaQunBtn = QPushButton(self)
         self.jiaQunBtn.setObjectName(u"jiaQunBtn")
         self.jiaQunBtn.setProperty("round", True)
@@ -1216,7 +1316,8 @@ class SettingsWindow(AcrylicWindow):
         self.GUIG.setTitle("界面设置")
         self.label_4.setText("在这里选择你想要的界面样式")
         self.getUpBtn.setText("\u68c0\u67e5\u66f4\u65b0")
-        self.nowVerLable.setText("当前版本:2.0.1(22.4.16),已是最新!")
+        self.nowVerLable.setText("当前版本:2.0.2(22.5.15),已是最新!")
+        self.JuanZengBtn.setText("捐赠晓游ChR吧！~")
         self.jiaQunBtn.setText(
             "\u70b9\u51fb\u52a0\u5165\u7fa4\u804a: \u6770\u514b\u59da\u306e\u5c0f\u5c4b \u4ee5\u83b7\u53d6\u652f\u6301")
         self.shengMingBtn.setText("\u4f7f\u7528\u58f0\u660e")
@@ -1225,7 +1326,7 @@ class SettingsWindow(AcrylicWindow):
         self.reduceSpeedEdit.setText(str(reduceSpeed))
         self.reduceSpeedEdit_2.setText(str(reduceSpeed_2))
         self.DefaultPathEdit.setText(defaultPath)
-        self.threadNumC.addItems([str(i + 1) for i in range(1024)])
+        self.threadNumC.addItems([str(i + 1) for i in range(2048)])
         self.GUIC.addItems(["图标型(实验性功能)", "列表型"])
 
         self.threadNumC.setCurrentIndex(threadNum - 1)
@@ -1249,6 +1350,7 @@ class SettingsWindow(AcrylicWindow):
                                                                                          "若你从以上声明的下载来源以外的途径下载了本软件，本软件制作方概不负责！")
                                                                                 ))
         self.GUIC.currentIndexChanged.connect(self.changeGUI)
+        self.JuanZengBtn.clicked.connect(BeggingWindow)
 
     def changeReduceSpeed(self):
         global reduceSpeed
@@ -1907,7 +2009,7 @@ class Window(AcrylicWindow):
         self.listBtn.setText("推荐资源")
         self.downBtn.setText("任务列表")
         self.toolsBtn.setText("实用工具")
-        self.verLable.setText("2.0.1(22.4.16)")
+        self.verLable.setText("2.0.2(22.5.15)")
 
         self.listNotLoaded = False
         # 加载GIF
