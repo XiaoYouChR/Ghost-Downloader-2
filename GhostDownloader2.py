@@ -450,20 +450,20 @@ class DownGroupBox(QGroupBox):
                                                                                                         'size']) / speed)))
                     globalSignal.change_text.emit(self.threadNumLabel,
                                                   f"线程数:{self.blocks_num}")
-                    # 监测下载速度下降
-                    maxspeed = max(maxspeed, speed)
-                    # 当满足：该监测了 + 未完成 + 速度下降百分比达到了阈值 + 速度低于 1 MB/s
-                    if wait_times < 0 and (
-                            maxspeed - speed) / maxspeed > SPEED_DEGRADATION_PERCENTAGE and speed < int(
-                        reduceSpeed_2) * 1024:
-                        sys.stdout.write("\r[info] speed degradation, restarting...          ")
-                        globalSignal.change_text.emit(self.stateLabel, "正在下载:速度过低,正在重连...")
-                        self.stop()
-                        self.again()
-                        maxspeed = 0
-                        wait_times = WAIT_TIMES_BEFORE_RESTART
-                    else:
-                        wait_times -= 1
+                    # # 监测下载速度下降
+                    # maxspeed = max(maxspeed, speed)
+                    # # 当满足：该监测了 + 未完成 + 速度下降百分比达到了阈值 + 速度低于 1 MB/s
+                    # if wait_times < 0 and (
+                    #         maxspeed - speed) / maxspeed > SPEED_DEGRADATION_PERCENTAGE and speed < int(
+                    #     reduceSpeed_2) * 1024:
+                    #     sys.stdout.write("\r[info] speed degradation, restarting...          ")
+                    #     globalSignal.change_text.emit(self.stateLabel, "正在下载:速度过低,正在重连...")
+                    #     self.stop()
+                    #     self.again()
+                    #     maxspeed = 0
+                    #     wait_times = WAIT_TIMES_BEFORE_RESTART
+                    # else:
+                    #     wait_times -= 1
                 time.sleep(REFRESH_INTERVAL)
             elif percentage == 100:
                 time.sleep(0.3)
@@ -1200,36 +1200,36 @@ class SettingsWindow(AcrylicWindow):
 
         self.verticalLayout.addWidget(self.threadNumG)
 
-        self.restartG = QGroupBox(self)
-        self.restartG.setObjectName(u"restartG")
-
-        self.horizontalLayout_5 = QHBoxLayout(self.restartG)
-        self.horizontalLayout_5.setObjectName(u"horizontalLayout_5")
-
-        self.label = QLabel(self.restartG)
-        self.label.setObjectName(u"label")
-        self.label.setProperty("blue", True)
-        self.horizontalLayout_5.addWidget(self.label)
-
-        self.reduceSpeedEdit = QLineEdit(self.restartG)
-        self.reduceSpeedEdit.setObjectName(u"reduceSpeedEdit")
-        self.horizontalLayout_5.addWidget(self.reduceSpeedEdit)
-
-        self.label_2 = QLabel(self.restartG)
-        self.label_2.setObjectName(u"label_2")
-        self.label_2.setProperty("blue", True)
-        self.horizontalLayout_5.addWidget(self.label_2)
-
-        self.reduceSpeedEdit_2 = QLineEdit(self.restartG)
-        self.reduceSpeedEdit_2.setObjectName(u"reduceSpeedEdit_2")
-        self.horizontalLayout_5.addWidget(self.reduceSpeedEdit_2)
-
-        self.label_3 = QLabel(self.restartG)
-        self.label_3.setObjectName(u"label_3")
-        self.label_3.setProperty("blue", True)
-        self.horizontalLayout_5.addWidget(self.label_3)
-
-        self.verticalLayout.addWidget(self.restartG)
+        # self.restartG = QGroupBox(self)
+        # self.restartG.setObjectName(u"restartG")
+        #
+        # self.horizontalLayout_5 = QHBoxLayout(self.restartG)
+        # self.horizontalLayout_5.setObjectName(u"horizontalLayout_5")
+        #
+        # self.label = QLabel(self.restartG)
+        # self.label.setObjectName(u"label")
+        # self.label.setProperty("blue", True)
+        # self.horizontalLayout_5.addWidget(self.label)
+        #
+        # self.reduceSpeedEdit = QLineEdit(self.restartG)
+        # self.reduceSpeedEdit.setObjectName(u"reduceSpeedEdit")
+        # self.horizontalLayout_5.addWidget(self.reduceSpeedEdit)
+        #
+        # self.label_2 = QLabel(self.restartG)
+        # self.label_2.setObjectName(u"label_2")
+        # self.label_2.setProperty("blue", True)
+        # self.horizontalLayout_5.addWidget(self.label_2)
+        #
+        # self.reduceSpeedEdit_2 = QLineEdit(self.restartG)
+        # self.reduceSpeedEdit_2.setObjectName(u"reduceSpeedEdit_2")
+        # self.horizontalLayout_5.addWidget(self.reduceSpeedEdit_2)
+        #
+        # self.label_3 = QLabel(self.restartG)
+        # self.label_3.setObjectName(u"label_3")
+        # self.label_3.setProperty("blue", True)
+        # self.horizontalLayout_5.addWidget(self.label_3)
+        #
+        # self.verticalLayout.addWidget(self.restartG)
 
         self.GUIG = QGroupBox(self)
         self.GUIG.setObjectName(u"GUIG")
@@ -1309,22 +1309,22 @@ class SettingsWindow(AcrylicWindow):
         self.decidePathBtn.setText("选择路径")
         self.threadNumG.setTitle("\u4e0b\u8f7d\u7ebf\u7a0b\u8bbe\u7f6e")
         self.tipLabel.setText("请勿设置过高的下载线程,因为这可能造成电脑卡顿和下载失败!")
-        self.restartG.setTitle("\u81ea\u52a8\u91cd\u8fde\u8bbe\u7f6e")
-        self.label.setText("\u5f53\u4e0b\u8f7d\u964d\u901f\u9ad8\u4e8e")
-        self.label_2.setText("%, 且下载速度低于")
-        self.label_3.setText("KB/s\u65f6, \u81ea\u52a8\u91cd\u8fde.")
+        # self.restartG.setTitle("\u81ea\u52a8\u91cd\u8fde\u8bbe\u7f6e")
+        # self.label.setText("\u5f53\u4e0b\u8f7d\u964d\u901f\u9ad8\u4e8e")
+        # self.label_2.setText("%, 且下载速度低于")
+        # self.label_3.setText("KB/s\u65f6, \u81ea\u52a8\u91cd\u8fde.")
         self.GUIG.setTitle("界面设置")
         self.label_4.setText("在这里选择你想要的界面样式")
         self.getUpBtn.setText("\u68c0\u67e5\u66f4\u65b0")
-        self.nowVerLable.setText("当前版本:2.0.2(22.5.15),已是最新!")
+        self.nowVerLable.setText("当前版本:2.0.2(22.5.21),已是最新!")
         self.JuanZengBtn.setText("捐赠晓游ChR吧！~")
         self.jiaQunBtn.setText(
             "\u70b9\u51fb\u52a0\u5165\u7fa4\u804a: \u6770\u514b\u59da\u306e\u5c0f\u5c4b \u4ee5\u83b7\u53d6\u652f\u6301")
         self.shengMingBtn.setText("\u4f7f\u7528\u58f0\u660e")
         self.myIndexBtn.setText("\u6253\u5f00\u6653\u6e38ChR\u7684\u4e3b\u9875")
 
-        self.reduceSpeedEdit.setText(str(reduceSpeed))
-        self.reduceSpeedEdit_2.setText(str(reduceSpeed_2))
+        # self.reduceSpeedEdit.setText(str(reduceSpeed))
+        # self.reduceSpeedEdit_2.setText(str(reduceSpeed_2))
         self.DefaultPathEdit.setText(defaultPath)
         self.threadNumC.addItems([str(i + 1) for i in range(2048)])
         self.GUIC.addItems(["图标型(实验性功能)", "列表型"])
@@ -1337,8 +1337,8 @@ class SettingsWindow(AcrylicWindow):
         self.myIndexBtn.clicked.connect(lambda: open_new_tab("https://space.bilibili.com/437313511"))
         self.decidePathBtn.clicked.connect(lambda: decidePathWin(self, self.DefaultPathEdit, True))
         self.threadNumC.currentIndexChanged.connect(self.changeThreadNum)
-        self.reduceSpeedEdit.editingFinished.connect(self.changeReduceSpeed)
-        self.reduceSpeedEdit_2.editingFinished.connect(self.changereduceSpeed_2)
+        # self.reduceSpeedEdit.editingFinished.connect(self.changeReduceSpeed)
+        # self.reduceSpeedEdit_2.editingFinished.connect(self.changereduceSpeed_2)
         self.shengMingBtn.clicked.connect(lambda: globalSignal.message_box.emit(self.logoImg, "使用声明", ("               软件使用声明\n"
                                                                                          "本软件下载的系统仅供个人用户学习、研究使用。\n"
                                                                                          "任何用户不得将其用于任何商业用途\n"
@@ -1352,31 +1352,31 @@ class SettingsWindow(AcrylicWindow):
         self.GUIC.currentIndexChanged.connect(self.changeGUI)
         self.JuanZengBtn.clicked.connect(BeggingWindow)
 
-    def changeReduceSpeed(self):
-        global reduceSpeed
-        temp = self.reduceSpeedEdit.text()
-        try:
-            temp = int(temp)
-            if temp >= 0 and temp <= 100:
-                reduceSpeed = temp
-                changeConfig()
-            else:
-                self.reduceSpeedEdit.setText(str(reduceSpeed))
-        except:
-            self.reduceSpeedEdit.setText(str(reduceSpeed))
-
-    def changereduceSpeed_2(self):
-        global reduceSpeed_2
-        temp = self.reduceSpeedEdit_2.text()
-        try:
-            temp = int(temp)
-            if temp >= 0 and temp <= 10240:
-                reduceSpeed_2 = temp
-                changeConfig()
-            else:
-                self.reduceSpeedEdit_2.setText(str(reduceSpeed_2))
-        except:
-            self.reduceSpeedEdit_2.setText(str(reduceSpeed_2))
+    # def changeReduceSpeed(self):
+    #     global reduceSpeed
+    #     temp = self.reduceSpeedEdit.text()
+    #     try:
+    #         temp = int(temp)
+    #         if temp >= 0 and temp <= 100:
+    #             reduceSpeed = temp
+    #             changeConfig()
+    #         else:
+    #             self.reduceSpeedEdit.setText(str(reduceSpeed))
+    #     except:
+    #         self.reduceSpeedEdit.setText(str(reduceSpeed))
+    #
+    # def changereduceSpeed_2(self):
+    #     global reduceSpeed_2
+    #     temp = self.reduceSpeedEdit_2.text()
+    #     try:
+    #         temp = int(temp)
+    #         if temp >= 0 and temp <= 10240:
+    #             reduceSpeed_2 = temp
+    #             changeConfig()
+    #         else:
+    #             self.reduceSpeedEdit_2.setText(str(reduceSpeed_2))
+    #     except:
+    #         self.reduceSpeedEdit_2.setText(str(reduceSpeed_2))
 
     def changePath(self):
         # 修改之前备份
@@ -2009,7 +2009,7 @@ class Window(AcrylicWindow):
         self.listBtn.setText("推荐资源")
         self.downBtn.setText("任务列表")
         self.toolsBtn.setText("实用工具")
-        self.verLable.setText("2.0.2(22.5.15)")
+        self.verLable.setText("2.0.2(22.5.21)")
 
         self.listNotLoaded = False
         # 加载GIF
