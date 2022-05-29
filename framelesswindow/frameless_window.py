@@ -2,6 +2,7 @@
 from ctypes import POINTER, cast
 from ctypes.wintypes import MSG
 from platform import platform
+from sys import getwindowsversion
 
 from PySide2.QtCore import Qt
 from PySide2.QtGui import QCursor
@@ -148,11 +149,14 @@ class AcrylicWindow(FramelessWindow):
         self.setWindowFlags(Qt.FramelessWindowHint |
                             Qt.WindowMinMaxButtonsHint)
         self.windowEffect.addWindowAnimation(self.winId())
-        OSName = platform()
-        if "Windows-7" in OSName:
+
+        if "Windows-7" in platform():
+            self.windowEffect.addShadowEffect(self.winId())
             self.windowEffect.setAeroEffect(self.winId())
         else:
             self.windowEffect.setAcrylicEffect(self.winId())
+            if getwindowsversion().build >= 22000:
+                self.windowEffect.addShadowEffect(self.winId())
 
 class FramelessDialog(QDialog):
 
@@ -269,7 +273,6 @@ class FramelessDialog(QDialog):
         params.rgrc[0].right = self.__monitorInfo['Work'][2]
         params.rgrc[0].bottom = self.__monitorInfo['Work'][3]
 
-
 class AcrylicDialog(FramelessDialog):
     """ A frameless window with acrylic effect """
 
@@ -279,8 +282,11 @@ class AcrylicDialog(FramelessDialog):
         self.setWindowFlags(Qt.FramelessWindowHint |
                             Qt.WindowMinMaxButtonsHint)
         self.windowEffect.addWindowAnimation(self.winId())
-        OSName = platform()
-        if "Windows-7" in OSName:
+
+        if "Windows-7" in platform():
+            self.windowEffect.addShadowEffect(self.winId())
             self.windowEffect.setAeroEffect(self.winId())
         else:
             self.windowEffect.setAcrylicEffect(self.winId())
+            if getwindowsversion().build >= 22000:
+                self.windowEffect.addShadowEffect(self.winId())
