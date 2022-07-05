@@ -67,7 +67,7 @@ class DLWorker:
         return _progress
 
 class DownloadEngine(Process):
-    def __init__(self,url: str, filename: str, download_dir: str, blocks_num: int, proxiesIP):
+    def __init__(self, url: str, filename: str, download_dir: str, blocks_num: int, proxiesIP):
         super(DownloadEngine, self).__init__(daemon=True)
 
         self.blocks_num = blocks_num
@@ -79,7 +79,6 @@ class DownloadEngine(Process):
 
         self.__bad_url_flag = False
         self.file_size = self.__get_size()
-
 
     def run(self):
         if not self.__bad_url_flag:
@@ -281,14 +280,14 @@ class DownloadEngine(Process):
 
     def clear(self, all_cache=False):
         # 清除历史
-        with open("history.hst", "r") as f:
+        with open("history.xml", "r") as f:
             tmp = f.read()
             f.close()
             tmp = sub(f"<hst><filename>{self.filename}</filename><downdir>{self.download_dir}</downdir>", "Deleted",
                       tmp)
             print(tmp)
 
-        with open("history.hst", "w") as f:
+        with open("history.xml", "w") as f:
             f.write(tmp)
             f.close()
 

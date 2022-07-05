@@ -160,8 +160,8 @@ def newDownloadTask(iconPath: str, url: str, filename: str, download_dir: str, b
     global DownGroupBoxesList
 
     if not autoStarted:
-        if path.exists("history.hst") == True:
-            with open("history.hst", "r", encoding="utf-8") as f:
+        if path.exists("history.xml") == True:
+            with open("history.xml", "r", encoding="utf-8") as f:
                 tmp = f.read()
                 f.close()
 
@@ -171,13 +171,13 @@ def newDownloadTask(iconPath: str, url: str, filename: str, download_dir: str, b
                     globalSignal.message_box.emit(parent.logoImg, "你这是故意找茬啊", "有把同一个文件下载到同一个文件夹的人吗？")
                     return  # 结束
                 elif not tmp:
-                    with open("history.hst", "a", encoding="utf-8") as t:
+                    with open("history.xml", "a", encoding="utf-8") as t:
                         t.write(f"<hst><filename>{filename}</filename><downdir>{download_dir}</downdir>"
                                 f"<downurl>{url}</downurl><threadnum>{blocks_num}</threadnum><icon>{iconPath}</icon></hst>")
                         t.close()
 
         else:
-            with open("history.hst", "w", encoding="utf-8") as f:
+            with open("history.xml", "w", encoding="utf-8") as f:
                 f.write(f"<hst><filename>{filename}</filename><downdir>{download_dir}</downdir>"
                         f"<downurl>{url}</downurl><threadnum>{blocks_num}</threadnum><icon>{iconPath}</icon></hst>")
                 f.close()
@@ -414,12 +414,8 @@ class DownGroupBox(QGroupBox):
         """万恶的督导：监视下载速度、进程数；提出整改意见；"""
         REFRESH_INTERVAL = 1  # 每多久输出一次监视状态
         LAG_COUNT = 10  # 计算过去多少次测量的平均速度
-        WAIT_TIMES_BEFORE_RESTART = 30  # 乘以时间就是等待多久执行一次 restart
-        SPEED_DEGRADATION_PERCENTAGE = int(reduceSpeed) / 100  # 速度下降百分比
         self.__download_record = []
-        maxspeed = 0
         percentage = 0
-        wait_times = WAIT_TIMES_BEFORE_RESTART
         while True:
             if percentage < 100:
                 dwn_size = sum([path.getsize(cachefile) for cachefile in self.__get_cache_filenames()])
@@ -450,21 +446,9 @@ class DownGroupBox(QGroupBox):
                                                                                                         'size']) / speed)))
                     globalSignal.change_text.emit(self.threadNumLabel,
                                                   f"线程数:{self.blocks_num}")
-                    # # 监测下载速度下降
-                    # maxspeed = max(maxspeed, speed)
-                    # # 当满足：该监测了 + 未完成 + 速度下降百分比达到了阈值 + 速度低于 1 MB/s
-                    # if wait_times < 0 and (
-                    #         maxspeed - speed) / maxspeed > SPEED_DEGRADATION_PERCENTAGE and speed < int(
-                    #     reduceSpeed_2) * 1024:
-                    #     sys.stdout.write("\r[info] speed degradation, restarting...          ")
-                    #     globalSignal.change_text.emit(self.stateLabel, "正在下载:速度过低,正在重连...")
-                    #     self.stop()
-                    #     self.again()
-                    #     maxspeed = 0
-                    #     wait_times = WAIT_TIMES_BEFORE_RESTART
-                    # else:
-                    #     wait_times -= 1
+
                 time.sleep(REFRESH_INTERVAL)
+
             elif percentage == 100:
                 time.sleep(0.3)
                 sewed_size = path.getsize(f"{self.download_dir}/{self.filename}")
@@ -565,7 +549,7 @@ class DownGroupBox(QGroupBox):
             self.Paused = False
 
     def again(self):
-        self.Process = DownloadEngine(self.url, self.filename, self.download_dir, self.blocks_num)
+        self.Process = DownloadEngine(self.url, self.filename, self.download_dir, self.blocks_num, proxiesIP)
         self.Process.start()
 
     def cancel(self):
@@ -587,14 +571,14 @@ class DownGroupBox(QGroupBox):
 
     def clear(self, all_cache=False):
         # 清除历史
-        with open("history.hst", "r", encoding="utf-8") as f:
+        with open("history.xml", "r", encoding="utf-8") as f:
             tmp = f.read()
             f.close()
             tmp = sub(f"<hst><filename>{self.filename}</filename><downdir>{self.download_dir}</downdir>", "Deleted",
                       tmp)
             print(tmp)
 
-        with open("history.hst", "w", encoding="utf-8") as f:
+        with open("history.xml", "w", encoding="utf-8") as f:
             f.write(tmp)
             f.close()
 
@@ -1837,8 +1821,8 @@ class Window(AcrylicWindow):
         self.titleBar.setBtn.clicked.connect(settingsWindow.show)
 
         # 读取下载历史并自动开始
-        if path.exists("history.hst") == True:
-            with open("history.hst", "r", encoding="utf-8") as f:
+        if path.exists("history.xml") == True:
+            with open("history.xml", "r", encoding="utf-8") as f:
                 tmp = f.read()
                 f.close()
                 tmp = findall(r"<hst>([\s\S]*?)</hst>", tmp)
