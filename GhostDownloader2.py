@@ -241,18 +241,19 @@ class BeggingWindow(AcrylicWindow):
         self.Label.move(310,15)
         self.Label.setText("感谢Thanks♪(･ω･)ﾉ捐赠!~ 谢谢您!~")
 
-        threading.Thread(target=lambda: self.__setPixmap("https://obs.cstcloud.cn/share/obs/xiaoyouchr/QQ.png","QQ",self.QQLabel), daemon=True).start()  # 设置图片
-        threading.Thread(target=lambda: self.__setPixmap("https://obs.cstcloud.cn/share/obs/xiaoyouchr/Wechat.png","Wechat",self.WechatLabel), daemon=True).start()  # 设置图片
-        threading.Thread(target=lambda: self.__setPixmap("https://obs.cstcloud.cn/share/obs/xiaoyouchr/Alipay.jpg","Alipay",self.AlipayLabel), daemon=True).start()  # 设置图片
+        threading.Thread(target=lambda: self.__setPixmap("https://s1.ax1x.com/2022/12/27/zza3Of.png","QQ",self.QQLabel), daemon=True).start()  # 设置图片
+        threading.Thread(target=lambda: self.__setPixmap("https://s1.ax1x.com/2022/12/27/zza16P.png","Wechat",self.WechatLabel), daemon=True).start()  # 设置图片
+        threading.Thread(target=lambda: self.__setPixmap("https://s1.ax1x.com/2022/12/27/zzaGm8.jpg","Alipay",self.AlipayLabel), daemon=True).start()  # 设置图片
 
         self.textEdit = QTextEdit(self)
         self.textEdit.setObjectName(u"textEdit")
         self.textEdit.setGeometry(QRect(20,350,760,230))
         self.textEdit.setReadOnly(True)
 
-        response = requests.get("https://obs.cstcloud.cn/share/obs/xiaoyouchr/JuanZengInfomation.txt",headers=headers,proxies=proxies,verify=False)
-        response.encoding = "utf-8"
-        response = response.text
+        # response = requests.get("https://obs.cstcloud.cn/share/obs/xiaoyouchr/JuanZengInfomation.txt",headers=headers,proxies=proxies,verify=False)
+        # response.encoding = "utf-8"
+        # response = response.text
+        response = "感谢各位的每一笔捐赠鸭~!\n留下付款备注的话将会把您的大名写入捐赠榜哦！"
 
         self.textEdit.setText(response)
 
@@ -262,7 +263,14 @@ class BeggingWindow(AcrylicWindow):
     def __setPixmap(self, url:str, name:str, label:QLabel):
         global proxies
 
-        self.icon = requests.get(url, headers=headers, proxies=proxies).content
+        finished = False
+        while not finished:
+            try:
+                self.icon = requests.get(url, headers=headers, proxies=proxies).content
+                finished = True
+            except Exception as err:
+                print(err)
+            time.sleep(0.15)
 
         with open(f'temp/{name}-icon', 'wb') as f:
             f.write(self.icon)
@@ -374,7 +382,7 @@ class DownGroupBox(QGroupBox):
             self.threadNumLabel.setGeometry(QRect(464, 5, 200, 18))
 
             self.JuanZengBtn = QPushButton(self)
-            self.JuanZengBtn.setGeometry(QRect(360, 5, 51, 21))
+            self.JuanZengBtn.setGeometry(QRect(360, 5, 46, 21))
             self.JuanZengBtn.setObjectName(u"JuanZengBtn")
             self.JuanZengBtn.setProperty("round", True)
 
@@ -390,7 +398,7 @@ class DownGroupBox(QGroupBox):
             self.cancelBtn.setGeometry(QRect(551, 50, 21, 21))
 
             # retranslateUi
-            self.JuanZengBtn.setText("捐赠")
+            self.JuanZengBtn.setText("Beg")
             self.openFileBtn.setText("打开目录")
             self.stateLabel.setText("正在准备...")
             self.cancelBtn.setText("╳")
@@ -501,6 +509,7 @@ class DownGroupBox(QGroupBox):
         self.cancelBtn.move(self.w - 23, 49)
         self.pauseBtn.move(self.w - 48, 49)
         self.threadNumLabel.move(self.w - 116, 5)
+        self.JuanZengBtn.move(self.w - 220, 5)
 
         self.speedLabel.move(self.w / 6 - 19, 50)
         self.fileSizeLabel.move(self.w / 3 + 14, 50)
@@ -594,6 +603,7 @@ class DownGroupBox(QGroupBox):
             except PermissionError:
                 print("删除失败,正在重试!")
                 delSuccess = False
+            time.sleep(0.15)
 
     def __get_cache_filenames(self):
         return glob(f"{self.cache_dir}{self.filename}.*.gd2")
@@ -620,35 +630,35 @@ class NewNetTaskWindow(AcrylicDialog):
         print(f"{icon}\n{downurl}\n{filename}")
         self.setUp()
         # 自定义功能区
-        WPSsupport = compile(u"\^\^\^\^\^", IGNORECASE).search(downurl)
-        WPSSupport_2 = compile(u"\^\^\^\^\^\$\$\$\$\$", IGNORECASE).search(downurl)
-        CSTsupport = compile(u"\$\$\$\$\$", IGNORECASE).search(downurl)
-        print(WPSSupport_2)
+        # WPSsupport = compile(u"\^\^\^\^\^", IGNORECASE).search(downurl)
+        # WPSSupport_2 = compile(u"\^\^\^\^\^\$\$\$\$\$", IGNORECASE).search(downurl)
+        # CSTsupport = compile(u"\$\$\$\$\$", IGNORECASE).search(downurl)
+        # print(WPSSupport_2)
 
-        print("OD支持")
-        self.WPSRadioBtn.setDisabled(True)
-        self.CSTRadioBtn.setDisabled(True)
+        # print("OD支持")
+        # self.WPSRadioBtn.setDisabled(True)
+        # self.CSTRadioBtn.setDisabled(True)
         self.ODurl = downurl
         self.ODname = filename
         self.ODRadioBtn.setChecked(True)  # 默认Onedrive
 
-        if CSTsupport:
-            print("CST支持")
-            self.CSTRadioBtn.setDisabled(False)
-            self.ODurl = findall(u"([\S\s]*)\^\^\^\^\^", downurl)[0]
-            self.CSTurl = findall(u"\$\$\$\$\$([\S\s]*)", downurl)[0]
-            self.ODname = findall(u"([\S\s]*)\^\^\^\^\^", filename)[0]
-            self.CSTname = findall(u"\$\$\$\$\$([\S\s]*)", filename)[0]
-        if WPSsupport and not WPSSupport_2:
-            print("WPS支持")
-            self.WPSRadioBtn.setDisabled(False)
-            self.WPSurl = findall(u"\^\^\^\^\^([\S\s]*)\$\$\$\$\$", downurl)[0]
-            self.WPSurl = findall(u",?([\S\s]*?),", self.WPSurl)
-            print(self.WPSurl)
-            self.WPSname = findall(u"\^\^\^\^\^([\S\s]*)\$\$\$\$\$", filename)[0]
-            self.WPSname = findall(u",?([\S\s]*?),", self.WPSname)
-            print(self.WPSname)
-            self.WPSRadioBtn.setChecked(True)  # 默认WPS
+        # if CSTsupport:
+        #     print("CST支持")
+        #     self.CSTRadioBtn.setDisabled(False)
+        #     self.ODurl = findall(u"([\S\s]*)\^\^\^\^\^", downurl)[0]
+        #     self.CSTurl = findall(u"\$\$\$\$\$([\S\s]*)", downurl)[0]
+        #     self.ODname = findall(u"([\S\s]*)\^\^\^\^\^", filename)[0]
+        #     self.CSTname = findall(u"\$\$\$\$\$([\S\s]*)", filename)[0]
+        # if WPSsupport and not WPSSupport_2:
+        #     print("WPS支持")
+        #     self.WPSRadioBtn.setDisabled(False)
+        #     self.WPSurl = findall(u"\^\^\^\^\^([\S\s]*)\$\$\$\$\$", downurl)[0]
+        #     self.WPSurl = findall(u",?([\S\s]*?),", self.WPSurl)
+        #     print(self.WPSurl)
+        #     self.WPSname = findall(u"\^\^\^\^\^([\S\s]*)\$\$\$\$\$", filename)[0]
+        #     self.WPSname = findall(u",?([\S\s]*?),", self.WPSname)
+        #     print(self.WPSname)
+        #     self.WPSRadioBtn.setChecked(True)  # 默认WPS
 
         # 连接函数
         self.threadNumC.currentIndexChanged.connect(self.changeThreadNum)
@@ -750,12 +760,12 @@ class NewNetTaskWindow(AcrylicDialog):
         self.decideSourceG.setObjectName(u"decideSourceG")
         self.horizontalLayout_3 = QHBoxLayout(self.decideSourceG)
         self.horizontalLayout_3.setObjectName(u"horizontalLayout_3")
-        self.WPSRadioBtn = QRadioButton(self.decideSourceG)
-        self.WPSRadioBtn.setObjectName(u"WPSRadioBtn")
-        sizePolicy2.setHeightForWidth(self.WPSRadioBtn.sizePolicy().hasHeightForWidth())
-        self.WPSRadioBtn.setSizePolicy(sizePolicy2)
-
-        self.horizontalLayout_3.addWidget(self.WPSRadioBtn)
+        # self.WPSRadioBtn = QRadioButton(self.decideSourceG)
+        # self.WPSRadioBtn.setObjectName(u"WPSRadioBtn")
+        # sizePolicy2.setHeightForWidth(self.WPSRadioBtn.sizePolicy().hasHeightForWidth())
+        # self.WPSRadioBtn.setSizePolicy(sizePolicy2)
+        #
+        # self.horizontalLayout_3.addWidget(self.WPSRadioBtn)
 
         self.ODRadioBtn = QRadioButton(self.decideSourceG)
         self.ODRadioBtn.setObjectName(u"ODRadioBtn")
@@ -764,16 +774,16 @@ class NewNetTaskWindow(AcrylicDialog):
 
         self.horizontalLayout_3.addWidget(self.ODRadioBtn)
 
-        self.CSTRadioBtn = QRadioButton(self.decideSourceG)
-        self.CSTRadioBtn.setObjectName(u"CSTRadioBtn")
-        sizePolicy2.setHeightForWidth(self.CSTRadioBtn.sizePolicy().hasHeightForWidth())
-        self.CSTRadioBtn.setSizePolicy(sizePolicy2)
-
-        self.horizontalLayout_3.addWidget(self.CSTRadioBtn)
+        # self.CSTRadioBtn = QRadioButton(self.decideSourceG)
+        # self.CSTRadioBtn.setObjectName(u"CSTRadioBtn")
+        # sizePolicy2.setHeightForWidth(self.CSTRadioBtn.sizePolicy().hasHeightForWidth())
+        # self.CSTRadioBtn.setSizePolicy(sizePolicy2)
+        #
+        # self.horizontalLayout_3.addWidget(self.CSTRadioBtn)
 
         self.ODRadioBtn.raise_()
-        self.WPSRadioBtn.raise_()
-        self.CSTRadioBtn.raise_()
+        # self.WPSRadioBtn.raise_()
+        # self.CSTRadioBtn.raise_()
 
         self.verticalLayout.addWidget(self.decideSourceG)
 
@@ -799,36 +809,36 @@ class NewNetTaskWindow(AcrylicDialog):
         self.decidePathEdit.setText(defaultPath)
         self.decidePathBtn.setText(u"\u9009\u62e9\u8def\u5f84")
         self.decideSourceG.setTitle(u"\u9009\u62e9\u60a8\u7684\u4e0b\u8f7d\u6e90!")
-        self.WPSRadioBtn.setText(u"金山云(移动电信)")
-        self.ODRadioBtn.setText(u"微软云(联通电信)")
-        self.CSTRadioBtn.setText(u"科技网(三网优化)")
+        # self.WPSRadioBtn.setText(u"金山云(移动电信)")
+        self.ODRadioBtn.setText(u"OneDrive (因资金原因暂时停用其他下载方式)")
+        # self.CSTRadioBtn.setText(u"科技网(三网优化)")
         self.startBtn.setText(u"\u5f00\u59cb\u4e0b\u8f7d")
-
-    def getWPSDownloadLink(self):
-        DownloadLink = []  # 生成空列表
-        session = requests.Session()
-        session.headers.update(headers)
-        for i in self.WPSurl:
-            session.get("https://www.kdocs.cn/view/l/ssazQO5dfN4s")
-            response = session.get(url=i, allow_redirects=False).text
-            URL = findall(r"\"url\":\"([\S\s]*)\",\"sha1", response)
-            URL = URL[0].encode("utf-8").decode("unicode_escape")
-            print(URL)
-            DownloadLink.append(URL)
-        return DownloadLink
+        
+    # def getWPSDownloadLink(self):
+    #     DownloadLink = []  # 生成空列表
+    #     session = requests.Session()
+    #     session.headers.update(headers)
+    #     for i in self.WPSurl:
+    #         session.get("https://www.kdocs.cn/view/l/ssazQO5dfN4s")
+    #         response = session.get(url=i, allow_redirects=False).text
+    #         URL = findall(r"\"url\":\"([\S\s]*)\",\"sha1", response)
+    #         URL = URL[0].encode("utf-8").decode("unicode_escape")
+    #         print(URL)
+    #         DownloadLink.append(URL)
+    #     return DownloadLink
 
     def startDownload(self):
         print(self.threadNum)
         print(self.decidePathEdit.text())
-        if self.WPSRadioBtn.isChecked() == True:  # WPS
-            DownloadLink = self.getWPSDownloadLink()
-            for i in range(len(DownloadLink)):
-                newDownloadTask(self.icon, DownloadLink[i], self.WPSname[i], self.decidePathEdit.text(), self.threadNum,
-                                window)
-        elif self.ODRadioBtn.isChecked() == True:  # OD
-            newDownloadTask(self.icon, self.ODurl, self.ODname, self.decidePathEdit.text(), self.threadNum, window)
-        elif self.CSTRadioBtn.isChecked() == True:  # CST
-            newDownloadTask(self.icon, self.CSTurl, self.CSTname, self.decidePathEdit.text(), self.threadNum, window)
+        # if self.WPSRadioBtn.isChecked() == True:  # WPS
+        #     DownloadLink = self.getWPSDownloadLink()
+        #     for i in range(len(DownloadLink)):
+        #         newDownloadTask(self.icon, DownloadLink[i], self.WPSname[i], self.decidePathEdit.text(), self.threadNum,
+        #                         window)
+        # elif self.ODRadioBtn.isChecked() == True:  # OD
+        newDownloadTask(self.icon, self.ODurl, self.ODname, self.decidePathEdit.text(), self.threadNum, window)
+        # elif self.CSTRadioBtn.isChecked() == True:  # CST
+        #     newDownloadTask(self.icon, self.CSTurl, self.CSTname, self.decidePathEdit.text(), self.threadNum, window)
         self.close()
 
 
@@ -1300,7 +1310,7 @@ class SettingsWindow(AcrylicWindow):
         self.GUIG.setTitle("界面设置")
         self.label_4.setText("在这里选择你想要的界面样式")
         self.getUpBtn.setText("\u68c0\u67e5\u66f4\u65b0")
-        self.nowVerLable.setText("当前版本:2.0.2(22.5.21),已是最新!")
+        self.nowVerLable.setText("当前版本:2.0.2(22.12.27),已是最新!")
         self.JuanZengBtn.setText("捐赠晓游ChR吧！~")
         self.jiaQunBtn.setText(
             "\u70b9\u51fb\u52a0\u5165\u7fa4\u804a: \u6770\u514b\u59da\u306e\u5c0f\u5c4b \u4ee5\u83b7\u53d6\u652f\u6301")
@@ -1329,7 +1339,7 @@ class SettingsWindow(AcrylicWindow):
                                                                                          "本软件下载来源\n"
                                                                                          "bilibili平台:杰克姚发布的内容(包括但不限于视频及其简介等)\n"
                                                                                          "QQ群:杰克姚の小屋(1045814906)(包括但不限于群文件和公告等)\n"
-                                                                                         "网站:www.xiaoyouchr.cn/jod\n"
+                                                                                         # "网站:www.xiaoyouchr.cn/jod\n"
                                                                                          "本声明解释权归晓游ChR所有\n"
                                                                                          "若你从以上声明的下载来源以外的途径下载了本软件，本软件制作方概不负责！")
                                                                                 ))
@@ -1448,6 +1458,7 @@ class MyMessageBox(AcrylicWindow):
         super().__init__(parent=parent, skinName=skinName)
         self.setObjectName("MyMessageBox")
         self.setMinimumSize(400, 300)
+        self.resize(400, 300)
         # QSS
         with open(f"{skinName}/GlobalQSS.qss", "r", encoding="utf-8") as f:
             _ = f.read()
@@ -1549,7 +1560,7 @@ class MyQuestionBox(AcrylicDialog):
 
 
 class ListGroupBox(QGroupBox):
-    def __init__(self, parent, name: str, filesize, info: str, updata, version, uplog: str, filename, downurl, videourl,
+    def __init__(self, parent, name: str, filesize, info: str, date, version, uplog: str, filename, downurl, videourl,
                  icon):
         super().__init__(parent=parent.listWidget)
 
@@ -1559,7 +1570,7 @@ class ListGroupBox(QGroupBox):
         self.name = name
         self.filesize = filesize
         self.info = info
-        self.updata = updata
+        self.date = date
         self.version = version
         self.uplog = uplog
         self.filename = filename
@@ -1614,8 +1625,8 @@ class ListGroupBox(QGroupBox):
                                       "}")
         # 临时
 
-        self.upDataLabel = QLabel(self.moreWidget)
-        self.upDataLabel.setGeometry(QRect(165, 0, 176, 21))
+        self.dateLabel = QLabel(self.moreWidget)
+        self.dateLabel.setGeometry(QRect(165, 0, 176, 21))
 
         self.fileSizeLabel = QLabel(self.moreWidget)
         self.fileSizeLabel.setGeometry(QRect(340, 0, 119, 20))
@@ -1684,7 +1695,16 @@ class ListGroupBox(QGroupBox):
             self.opened = False
 
     def setImg(self):
-        self.icon = requests.get(url=self.icon, headers=headers, proxies=proxies).content
+
+        finished = False
+        while not finished:
+            try:
+                self.icon = requests.get(self.icon, headers=headers, proxies=proxies).content
+                finished = True
+            except Exception as err:
+                print(err)
+            time.sleep(0.15)
+
         with open(f'temp/{self.name}-icon', 'wb') as f:
             f.write(self.icon)
             f.close()
@@ -1696,7 +1716,7 @@ class ListGroupBox(QGroupBox):
     def changeVersion(self):
         self.currentIndex = self.verComboBox.currentIndex()
         self.fileSizeLabel.setText(f"大小:{self.filesize[self.currentIndex]}")
-        self.upDataLabel.setText(f"更新日期:{self.updata[self.currentIndex]}")
+        self.dateLabel.setText(f"更新日期:{self.date[self.currentIndex]}")
 
     def resizeEvent(self, event):
         self.w = self.width()
@@ -1712,7 +1732,7 @@ class ListGroupBox(QGroupBox):
 
 
 class PictureGroupBox(QWidget):
-    def __init__(self, parent, name: str, filesize, info: str, updata, version, uplog: str, filename, downurl, videourl,
+    def __init__(self, parent, name: str, filesize, info: str, date, version, uplog: str, filename, downurl, videourl,
                  icon):
         super().__init__(parent=parent.listWidget)
         self.setObjectName("PictureGroupBox")
@@ -1731,7 +1751,7 @@ class PictureGroupBox(QWidget):
         self.name = name
         self.filesize = filesize
         self.info = info
-        self.updata = updata
+        self.date = date
         self.version = version
         self.uplog = uplog
         self.filename = filename
@@ -1767,7 +1787,15 @@ class PictureGroupBox(QWidget):
         self.BGButton.clicked.connect(self.Open)
 
     def setImg(self):
-        self.icon = requests.get(self.icon, headers=headers, proxies=proxies).content
+        finished = False
+        while not finished:
+            try:
+                self.icon = requests.get(self.icon, headers=headers, proxies=proxies).content
+                finished = True
+            except Exception as err:
+                print(err)
+            time.sleep(0.15)
+
         with open(f'temp/{self.name}-icon', 'wb') as f:
             f.write(self.icon)
             f.close()
@@ -1993,7 +2021,7 @@ class Window(AcrylicWindow):
         self.listBtn.setText("推荐资源")
         self.downBtn.setText("任务列表")
         self.toolsBtn.setText("实用工具")
-        self.verLable.setText("2.0.2(22.5.21)")
+        self.verLable.setText("2.0.2(22.12.27)")
 
         self.listNotLoaded = False
         # 加载GIF
@@ -2008,8 +2036,12 @@ class Window(AcrylicWindow):
 
         def getWebsiteContent():
             try:
-                content = requests.get("https://obs.cstcloud.cn/share/obs/xiaoyouchr/config.json", headers=headers,
+                content = requests.get("https://seelevollerei-my.sharepoint.com/personal/xiaoyouchr_xn--7et36u_cn/_layouts/52/download.aspx?share=ESV4o6MmGP9Ev9P71xrRl_cByYwqhqfNmljPF0xKAdMFXg", headers=headers,
                                        proxies=proxies, verify=False)
+                # with open("./Content_Local.txt", "r", encoding="utf-8") as f:
+                #     content = f.read()
+                #     f.close()
+
                 content.encoding = "utf-8"
                 content = content.text
                 self.load_list.emit(content)
@@ -2023,7 +2055,7 @@ class Window(AcrylicWindow):
                 self.listNotLoaded = True
             except Exception as err:
                 print(err)
-                globalSignal.message_box.emit(errorIcon, "未知错误!", f"请联系开发者,QQ:2078107317！\n{err}")
+                globalSignal.message_box.emit(errorIcon, "未知错误!", f"请联系开发者,E-mail:XiaoYouChR@outlook.com！\n{err}")
                 self.listNotLoaded = True
 
         threading.Thread(target=getWebsiteContent, daemon=True).start()
@@ -2044,7 +2076,14 @@ class Window(AcrylicWindow):
 
             def getWebsiteContent():
                 try:
-                    content = requests.get("https://128.14.239.141/config.txt", headers, verify=False, proxies=proxies)
+                    content = requests.get(
+                        "https://seelevollerei-my.sharepoint.com/personal/xiaoyouchr_xn--7et36u_cn/_layouts/52/download.aspx?share=ESV4o6MmGP9Ev9P71xrRl_cByYwqhqfNmljPF0xKAdMFXg",
+                        headers=headers,
+                        proxies=proxies, verify=False)
+                    # with open("./Content_Local.txt", "r", encoding="utf-8") as f:
+                    #     content = f.read()
+                    #     f.close()
+
                     content.encoding = "utf-8"
                     content = content.text
                     self.load_list.emit(content)
@@ -2055,7 +2094,7 @@ class Window(AcrylicWindow):
                     MyMessageBox(errorIcon, "网络连接失败！", f"请检查网络连接！\n{err}")
                     self.listNotLoaded = True
                 except Exception as err:
-                    MyMessageBox(errorIcon, "未知错误!", f"请联系开发者,QQ:2078107317！\n{err}")
+                    MyMessageBox(errorIcon, "未知错误!", f"请联系开发者,E-mail:XiaoYouChR@outlook.com！\n{err}")
                     self.listNotLoaded = True
 
             threading.Thread(target=getWebsiteContent, daemon=True).start()
@@ -2106,9 +2145,9 @@ class Window(AcrylicWindow):
             info = info[0]
             info = info.replace(r"\n", "\n")
 
-            updata = findall(r'<updata>([\s\S]*)</updata>', temp)
-            updata = updata[0]
-            updata = findall(r'\|?([\s\S]*?)\|', updata)
+            date = findall(r'<date>([\s\S]*)</date>', temp)
+            date = date[0]
+            date = findall(r'\|?([\s\S]*?)\|', date)
 
             version = findall(r'<version>([\s\S]*)</version>', temp)
             version = version[0]
@@ -2133,7 +2172,7 @@ class Window(AcrylicWindow):
             icon = findall(r'<icon>([\s\S]*)</icon>', temp)
             icon = icon[0]
             if GUI:  # 列表型
-                listGroupBoxesList[i] = ListGroupBox(self, name, filesize, info, updata, version, uplog, filename,
+                listGroupBoxesList[i] = ListGroupBox(self, name, filesize, info, date, version, uplog, filename,
                                                      downurl, videourl, icon)
                 listGroupBoxesList[i].resize(self.w - 25, 100)
                 # Action
@@ -2142,7 +2181,7 @@ class Window(AcrylicWindow):
 
                 listGroupBoxesList[i].show()
             if not GUI:  # 图标型
-                listGroupBoxesList[i] = PictureGroupBox(self, name, filesize, info, updata, version, uplog,
+                listGroupBoxesList[i] = PictureGroupBox(self, name, filesize, info, date, version, uplog,
                                                         filename, downurl, videourl, icon)
                 listGroupBoxesList[i].resize(130, 130)
                 listGroupBoxesList[i].move(10, i * 150 + 10)

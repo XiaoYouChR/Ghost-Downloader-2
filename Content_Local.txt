@@ -1,0 +1,96 @@
+<tab>
+    <name>Bocchi OS</name>
+    <filesize>|6.1GB|</filesize>
+    <info>杰克姚定制的全新项目来了！\n【杰克姚定制·动画项目】，正式启动！第一期，给大家带来《孤独摇滚！》的定制系统——Bocchi OS!\n快把结束乐队装进你的电脑！</info>
+    <date>|2022-12-24|</date>
+    <version>|Publish|</version>
+    <uplog>杰克姚定制的全新项目来了！\n【杰克姚定制·动画项目】，正式启动！第一期，给大家带来《孤独摇滚！》的定制系统——Bocchi OS!\n快把结束乐队装进你的电脑！</uplog>
+    <filename>|Bocchi_OS_DVD.iso|</filename>
+    <downurl>|https://seelevollerei-my.sharepoint.com/personal/jackyao_xn--7et36u_cn/_layouts/52/download.aspx?share=ETx2MszVYKdKukrW6UUjlD0BdoaY-aww1V57kvBEEBX4ww|</downurl>
+    <videourl>|https://www.bilibili.com/video/BV1V14y1P7T2|</videourl>
+    <icon>https://s1.ax1x.com/2022/12/27/zzYHRx.png</icon>
+</tab>
+<tab>
+    <name>Kiana OS</name>
+    <filesize>|8.52GB|</filesize>
+    <info>【薪炎永燃，初心永存】\nKiana OS，现已登场。\n本版本为Honkai OS的DLC版本，快把虫虫装进你的电脑吧！</info>
+    <date>|2022-12-07|</date>
+    <version>|Publish|</version>
+    <uplog>【薪炎永燃，初心永存】\nKiana OS，现已登场。\n本版本为Honkai OS的DLC版本，快把虫虫装进你的电脑吧！</uplog>
+    <filename>|Kiana_OS_DVD.iso|</filename>
+    <downurl>|https://seelevollerei-my.sharepoint.com/personal/jackyao_xn--7et36u_cn/_layouts/52/download.aspx?share=EeK5oyC4dKhCic875gnDUEYBJMHqUyx9Xg4rI5jfVHHNNw|</downurl>
+    <videourl>|https://www.bilibili.com/video/BV1LG4y1V7Dp|</videourl>
+    <icon>https://z3.ax1x.com/2021/08/15/fg2JHJ.png</icon>
+</tab>
+<tab>
+    <name>Elysia OS</name>
+    <filesize>|7.0G|</filesize>
+    <info>【真我之铭，一如初见】\nElysia OS，现已登场！\n本版本为Honkai OS的DLC版本，可通过下载主题包将Honkai OS改造成Elysia OS！也可以把现在的Windows改造成 Elysia OS！快把爱莉装进你的电脑吧！</info>
+    <date>|2022-11-11|</date>
+    <version>|Publish|</version>
+    <uplog>【真我之铭，一如初见】\nElysia OS，现已登场！\n本版本为Honkai OS的DLC版本，可通过下载主题包将Honkai OS改造成Elysia OS！也可以把现在的Windows改造成 Elysia OS！快把爱莉装进你的电脑吧！</uplog>
+    <filename>|Elysia_OS_DVD.iso|</filename>
+    <downurl>|https://seelevollerei-my.sharepoint.com/personal/jackyao_xn--7et36u_cn/_layouts/52/download.aspx?share=EQX_NA96rnxNlUacyXQ_hDQB15cQ6t7gmGr4MI50R3hJHw|</downurl>
+    <videourl>|https://www.bilibili.com/video/BV1R84y1v7NR|</videourl>
+    <icon>https://z3.ax1x.com/2021/08/15/fg2JHJ.png</icon>
+</tab>
+<tab>
+    <name>Honkai OS</name>
+    <filesize>|7.69GB|4.9GB|7.6GB|</filesize>
+    <info>【把女武神们装入你的电脑】\n感谢各位的一路陪伴！\nHonkai OS，把女武神装入你的电脑。</info>
+    <date>|2022-10-10|2021-8-7|2020-03-28|</date>
+    <version>|2.1(Win11)|1.6(Win10_x64)|1.2(Win7)|</version>
+    <uplog>知道大家等了很久了！\n感谢各位两年的陪伴与支持！</uplog>
+    <filename>|Honkai_OS_2_1_DVD.iso|Honkai_OS_1_6_x64_DVD.iso|Honkai_OS_1_2_Win7_DVD.iso|</filename>
+    <downurl>|https://seelevollerei-my.sharepoint.com/personal/jackyao_xn--7et36u_cn/_layouts/52/download.aspx?share=EayJr7OgsYRAoXEoJjR8uxoBQpnK6kL4oFkFyINgoJARiQ|https://seelevollerei-my.sharepoint.com/personal/jackyao_xn--7et36u_cn/_layouts/52/download.aspx?share=EUCJ_XhjzG5Is-n50KsNVKsBTal-GkMcF4EprazBuMk9jA|https://seelevollerei-my.sharepoint.com/personal/jackyao_xn--7et36u_cn/_layouts/52/download.aspx?share=EZj_7oOpJjdPrNRawOuGL3wBhlh-fJjSwiG_1rERFV81mw|</downurl>
+    <videourl>|https://www.bilibili.com/video/BV1eW4y1H74J|https://www.bilibili.com/video/BV1Gh411B78j|https://www.bilibili.com/video/BV1fg4y1b72G|</videourl>
+    <icon>https://z3.ax1x.com/2021/08/15/fg2JHJ.png</icon>
+</tab>
+<tab>
+    <name>Genshin OS</name>
+    <filesize>|7.18GB|</filesize>
+    <info>【再一次，在电脑上相遇】\nGenshin OS 3来了！\n如果有相关问题，欢迎加入粉丝群！\nGenshin OS，再次与你相遇</info>
+    <date>|2022-10-05|</date>
+    <version>|3.0|</version>
+    <uplog>如果有相关问题，欢迎扫描视频中的二维码加入粉丝群！\nGenshin OS，再次与你相遇</uplog>
+    <filename>|Genshin_OS_3_DVD.iso|</filename>
+    <downurl>|https://seelevollerei-my.sharepoint.com/personal/jackyao_xn--7et36u_cn/_layouts/52/download.aspx?share=EblXMbeoxTxLtCY_eIls26sBStXx4P-zGNyC1FZtxjQauQ|</downurl>
+    <videourl>|https://www.bilibili.com/video/BV1pt4y1c7ku|</videourl>
+    <icon>https://z3.ax1x.com/2021/08/15/fg21jU.png</icon>
+</tab>
+<tab>
+    <name>HuTao OS</name>
+    <filesize>|4.9GB|</filesize>
+    <info>HuTao OS来了，快把这只可爱的堂主装进你的电脑吧！</info>
+    <date>|2022-07-15|</date>
+    <version>|Publish|</version>
+    <uplog>HuTao OS来了，快把这只可爱的堂主装进你的电脑吧！</uplog>
+    <filename>|HuTao_OS_DVD.iso|</filename>
+    <downurl>|https://seelevollerei-my.sharepoint.com/personal/jackyao_xn--7et36u_cn/_layouts/52/download.aspx?share=Ed1fsSRl0r9Onv5sN3i5LJgBpR8p3bnLH-0mo9u1zDYUWg|</downurl>
+    <videourl>|https://www.bilibili.com/video/BV1GU4y1B7US|</videourl>
+    <icon>https://z3.ax1x.com/2021/08/15/fg21jU.png</icon>
+</tab>
+<tab>
+    <name>JackYao PE</name>
+    <filesize>|634MB|</filesize>
+    <info>历经2个月，杰克姚维护系统正式上线了！\n本项目基于FirPE Project进行修改与定制。\n在以后的定制系统中，大家就能一直看到它的身影了！\n当然，你也可以下载iso版，自己制作U盘启动盘来使用！</info>
+    <date>|2022-06-26|</date>
+    <version>|Publish|</version>
+    <uplog>历经2个月，杰克姚维护系统正式上线了！</uplog>
+    <filename>|JackYao_PE_DVD.iso|</filename>
+    <downurl>|https://seelevollerei-my.sharepoint.com/personal/jackyao_xn--7et36u_cn/_layouts/52/download.aspx?share=EUNOuIcrqMxLsAqM-XAIuEgBA53kE9rX77OSlqmCcTkJiw|</downurl>
+    <videourl>|https://www.bilibili.com/video/BV1794y117Hc|</videourl>
+    <icon>https://s1.ax1x.com/2022/04/16/Ltd7jJ.png</icon>
+</tab>
+<tab>
+    <name>𝑮𝒆𝒏𝒔𝒉𝒊𝒏 𝑼𝑰</name>
+    <filesize>|7.3GB|</filesize>
+    <info>【NewTech原神定制系统】\n由晓游ChR倾心制作\n欢迎点击右下角按钮观看宣传片和下载试用\n在使用中有任何的问题，欢迎大家到QQ群(531928387)中进行咨询。</info>
+    <date>|2022-07-09|</date>
+    <version>|Publish|</version>
+    <uplog>在使用中有任何的问题，欢迎大家到QQ群(531928387)中进行咨询。</uplog>
+    <filename>|Genshin_UI_on_Windows_11_Pro_for_Workstations_zh-CN_PRC_20220708_Stable_2.iso|</filename>
+    <downurl>|https://seelevollerei-my.sharepoint.com/personal/xiaoyouchr_xn--7et36u_cn/_layouts/52/download.aspx?share=ERW9TFwiZxFGgYe_4PpLLg0BKiZMpgeo4jT8OJAX1LgWrA|</downurl>
+    <videourl>|https://www.bilibili.com/video/BV1nS4y1H7jc|</videourl>
+    <icon>https://s1.ax1x.com/2022/07/27/vSTAeK.png</icon>
+</tab>
